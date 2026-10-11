@@ -6,6 +6,7 @@ android/util/
 !android/util/Log
 !android/util/Slog
 !android/util/EventLog
+!android/util/LruCache
 android/text/
 android/graphics/Rect
 android/graphics/RectF

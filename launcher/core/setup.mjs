@@ -3,7 +3,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { run, powershellArgs, guestPackages, nativeExe, nativeSysroot } from './runtime.mjs';
-import { avdHome, installAndroid, missingAndroid, multicoreReady } from './android_sdk.mjs';
+import { avdHome, installAndroid, installNativeImage, missingAndroid, multicoreReady } from './android_sdk.mjs';
 
 const exists = file => fs.access(file).then(() => true, () => false);
 const winget = id => ['install', '--exact', '--id', id, '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'];
@@ -109,8 +109,8 @@ export async function headsetStatus(runtime) {
   }
 }
 
-// What Refract Native needs instead of Android: its runner, the PC viewer, Refract's runtime libraries, Quest firmware
-// files, and the Java and Android build tools install_apk.py converts games with.
+// What Refract Native needs instead of Android: its runner, the PC viewer, Refract's runtime libraries, Android's
+// system files (from Google's stock image), and the Java and Android build tools install_apk.py converts games with.
 const nativeJdk = 'C:/Program Files/Java/jdk-27/bin/java.exe';
 async function nativeChecks(root, sdk) {
   const parts = [
@@ -132,7 +132,8 @@ async function nativeChecks(root, sdk) {
   if (!await exists(path.join(root, '../external/dex2jar/d2j-dex2jar.bat'))) tools.push('dex2jar');
   if (!await exists(path.join(sdk, 'build-tools'))) tools.push('Android build-tools');
   return [{ id: 'native', title: 'Refract Native', ...built },
-    { id: 'firmware', title: 'Quest firmware files', ok: firmware, detail: firmware ? sysroot : `Refract Native runs games on a dump of Quest system files. Expected in ${sysroot}.` },
+    { id: 'firmware', title: 'Android system files', ok: firmware, detail: firmware ? 'Android 14 ARM64 libraries are ready.' : 'Refract Native runs games on the Android system libraries from Google ARM64 system image.',
+      ...(firmware ? {} : { fix: { action: 'sysroot', label: 'Download', note: 'Downloads about 700 MB from Google. Downloading accepts the Android SDK License Agreement (developer.android.com/studio/terms).' } }) },
     { id: 'nativetools', title: 'Game conversion tools', ok: !tools.length, detail: tools.length ? `Missing: ${tools.join(', ')}.` : 'JDK, dex2jar and Android build-tools found.',
       ...(tools.includes('Android build-tools') ? { fix: { action: 'android', label: 'Set up Android', note: 'Downloads the Android SDK from Google. Setting up accepts the Android SDK License Agreement (developer.android.com/studio/terms).' } } : {}) }];
 }
@@ -158,6 +159,13 @@ export async function fixSetup(root, settings, action, progress = () => {}) {
       const inner = 'Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All -NoRestart | Out-Null';
       const outer = `$p = Start-Process powershell.exe -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-EncodedCommand','${Buffer.from(inner, 'utf16le').toString('base64')}'; exit $p.ExitCode`;
       await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', outer], long); return;
+    }
+    case 'sysroot': {
+      await installNativeImage(settings.sdk, progress);
+      progress('Preparing Android system files');
+      await run('python', ['-m', 'pip', 'install', '--quiet', 'ext4'], long);
+      await run('python', [path.join(root, 'native/tools/make_sysroot.py'), nativeSysroot(root)], { ...long, cwd: root });
+      return;
     }
     case 'native':
       await run('cmd.exe', ['/d', '/c', path.join(root, 'native/build.cmd')], { ...long, cwd: root }); return;

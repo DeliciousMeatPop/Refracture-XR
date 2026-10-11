@@ -32,10 +32,13 @@ std::mutex g_cores_mu;
 std::vector<DynCore*> g_cores;  // indexed by monitor slot
 u64 g_qpc_freq = 1;
 
+// arm64 Linux ignores the top address byte (TBI); Android's scudo tags its chunk-header pointers with it.
+inline u64 Untag(u64 a) { return a & 0x00FFFFFFFFFFFFFFull; }
+
 template <typename T>
 bool RawLoad(u64 addr, T* out) {
     __try {
-        *out = *reinterpret_cast<volatile T*>(addr);
+        *out = *reinterpret_cast<volatile T*>(Untag(addr));
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
@@ -45,7 +48,7 @@ bool RawLoad(u64 addr, T* out) {
 template <typename T>
 bool RawStore(u64 addr, T v) {
     __try {
-        *reinterpret_cast<volatile T*>(addr) = v;
+        *reinterpret_cast<volatile T*>(Untag(addr)) = v;
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
@@ -54,7 +57,7 @@ bool RawStore(u64 addr, T v) {
 
 bool RawCas8(u64 addr, u8 desired, u8 expected, bool* ok) {
     __try {
-        *ok = _InterlockedCompareExchange8(reinterpret_cast<volatile char*>(addr), desired, expected) ==
+        *ok = _InterlockedCompareExchange8(reinterpret_cast<volatile char*>(Untag(addr)), desired, expected) ==
               static_cast<char>(expected);
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -63,7 +66,7 @@ bool RawCas8(u64 addr, u8 desired, u8 expected, bool* ok) {
 }
 bool RawCas16(u64 addr, u16 desired, u16 expected, bool* ok) {
     __try {
-        *ok = _InterlockedCompareExchange16(reinterpret_cast<volatile short*>(addr), desired,
+        *ok = _InterlockedCompareExchange16(reinterpret_cast<volatile short*>(Untag(addr)), desired,
                                             expected) == static_cast<short>(expected);
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -72,7 +75,7 @@ bool RawCas16(u64 addr, u16 desired, u16 expected, bool* ok) {
 }
 bool RawCas32(u64 addr, u32 desired, u32 expected, bool* ok) {
     __try {
-        *ok = _InterlockedCompareExchange(reinterpret_cast<volatile long*>(addr), desired, expected) ==
+        *ok = _InterlockedCompareExchange(reinterpret_cast<volatile long*>(Untag(addr)), desired, expected) ==
               static_cast<long>(expected);
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -81,7 +84,7 @@ bool RawCas32(u64 addr, u32 desired, u32 expected, bool* ok) {
 }
 bool RawCas64(u64 addr, u64 desired, u64 expected, bool* ok) {
     __try {
-        *ok = _InterlockedCompareExchange64(reinterpret_cast<volatile long long*>(addr), desired,
+        *ok = _InterlockedCompareExchange64(reinterpret_cast<volatile long long*>(Untag(addr)), desired,
                                             expected) == static_cast<long long>(expected);
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
@@ -91,7 +94,7 @@ bool RawCas64(u64 addr, u64 desired, u64 expected, bool* ok) {
 bool RawCas128(u64 addr, Vec128 desired, Vec128 expected, bool* ok) {
     __try {
         long long cmp[2] = {static_cast<long long>(expected[0]), static_cast<long long>(expected[1])};
-        *ok = _InterlockedCompareExchange128(reinterpret_cast<volatile long long*>(addr),
+        *ok = _InterlockedCompareExchange128(reinterpret_cast<volatile long long*>(Untag(addr)),
                                              static_cast<long long>(desired[1]),
                                              static_cast<long long>(desired[0]), cmp) != 0;
         return true;
@@ -215,8 +218,13 @@ public:
 
     std::optional<std::uint32_t> MemoryReadCode(A64::VAddr vaddr) override {
         u32 v;
-        if (!RawLoad(vaddr, &v))
+        if (!RawLoad(vaddr, &v)) {
+            MEMORY_BASIC_INFORMATION mbi{};
+            VirtualQuery(reinterpret_cast<void*>(vaddr), &mbi, sizeof(mbi));
+            fprintf(stderr, "[rn] code read failed at 0x%llx: state 0x%lx protect 0x%lx\n",
+                    static_cast<unsigned long long>(vaddr), mbi.State, mbi.Protect);
             return std::nullopt;
+        }
         return v;
     }
 

@@ -413,6 +413,10 @@ int Vfs::Open(int dirfd, const std::string& path, int flags, u32 mode, FilePtr* 
         return err;
     Node n;
     int r = Resolve(abs, !(flags & O_NOFOLLOW_), &n);
+    if (r == 0) {  // REFRACT_FS_LOG=<file>: every guest path opened, to see what the sysroot must provide.
+        static FILE* log = [] { const char* f = getenv("REFRACT_FS_LOG"); return f ? fopen(f, "a") : nullptr; }();
+        if (log) { fprintf(log, "%s\n", abs.c_str()); fflush(log); }
+    }
     const int acc = flags & O_ACCMODE_;
     const bool want_write = acc == O_WRONLY_ || acc == O_RDWR_ || (flags & O_TRUNC_);
     if (r == 0 && n.kind == Node::Symlink)

@@ -92,13 +92,13 @@ export function emulatorOptions(settings) {
   return { Cores: settings.cores ?? 6, Audio: settings.audio || 'dsound',
     ...(settings.showWindow ? { ShowWindow: true } : {}), ...(settings.hostMic === false ? { NoHostMic: true } : {}) };
 }
-// Refract Native (no emulator): refract_native.exe runs the game's ARM64 libraries on this PC against Quest firmware
-// files. Settings > Runtime chooses it; native/tools/install_apk.py prepares each game under nativeAppsDir().
+// Refract Native (no emulator): refract_native.exe runs the game's ARM64 libraries on this PC against Google's Android system libraries.
+// Settings > Runtime chooses it; native/tools/install_apk.py prepares each game under nativeAppsDir().
 export const backends = ['emulator', 'native'];
 export const nativeAppsDir = () => path.join(process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || '.', 'AppData/Local'), 'Refract/native/apps');
 export const nativeExe = 'build-native/refract_native.exe';
-// The Quest firmware dump refract_native uses as Android's system files.
-export const nativeSysroot = root => process.env.REFRACT_SYSROOT || path.resolve(root, '../dumps/horizon-dump/fs');
+// The Android system files refract_native runs games on (tools: native/tools/make_sysroot.py, from Google's stock image).
+export const nativeSysroot = root => process.env.REFRACT_SYSROOT || path.join(root, 'build-native/sysroot');
 export function validPackage(value) {
   if (!/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+$/.test(value || '')) throw new Error('Invalid Android package name.');
   return value;
@@ -308,11 +308,11 @@ export class Runtime {
     if (this.child) throw new Error('A game is already running.');
     validPackage(game.package);
     if (!this.native && (!/^[A-Za-z0-9_./]+$/.test(game.activity || '') || game.activity.split('/')[0] !== game.package)) throw new Error('Invalid launch activity. Refresh installed games.');
-    if (this.native && mode !== 'pc') throw new Error('Refract Native plays on this PC for now. Use Play on PC, or switch to the Android emulator in Settings.');
     const obb = (game.files || []).filter(f => f.kind !== 'apk').map(f => path.dirname(f.path))[0];
-    const args = this.native ? powershellArgs(path.join(this.root, 'tools/run_native_game.ps1'), { Package: game.package, GameName: game.name,
+    const args = this.native ? powershellArgs(path.join(this.root, 'tools/run_native_game.ps1'), { Package: game.package, GameName: game.name, ...(mode === 'pc' ? { PcViewer: true } : {}),
       Sysroot: nativeSysroot(this.root), ...(obb ? { ObbDir: obb } : {}), ...(game.owned ? { Owned: true } : {}),
-      ...(validUserId(this.settings.userId) ? { UserId: this.settings.userId } : {}), ...(validEyeSize(this.settings.pcEyeSize) ? { EyeSize: this.settings.pcEyeSize } : {}) })
+      ...(validUserId(this.settings.userId) ? { UserId: this.settings.userId } : {}), ...(mode === 'pc' && validEyeSize(this.settings.pcEyeSize) ? { EyeSize: this.settings.pcEyeSize } : {}),
+      ...(mode !== 'pc' && validRenderScale(this.settings.vrRenderScale) ? { RenderScale: this.settings.vrRenderScale } : {}) })
       : powershellArgs(path.join(this.root, 'tools/run_windows_game.ps1'), { Avd: this.settings.avd, Port: this.port,
       Sdk: this.settings.sdk, MemoryMB: this.settings.memoryMB, Package: game.package, Activity: game.activity, GameName: game.name,
       ...(game.owned ? { Owned: true } : {}), ...(mode === 'pc' ? { PcViewer: true } : {}),

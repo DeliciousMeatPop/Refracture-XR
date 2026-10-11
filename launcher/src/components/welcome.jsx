@@ -18,7 +18,7 @@ export function Welcome({ state, run, pending, notify }) {
       <span className="orbit"><LogoMark /></span>
       <h1 id="welcome-title">Welcome to Refract</h1>
       {step === 0 ? <>
-        <p>Choose how Refract should run Quest games on this PC. You can change this any time in Settings.</p>
+        <p>How should Refract run games? You can change this later in Settings.</p>
         <RuntimeChoice value={backend} onChange={setBackend} />
         <div className="welcome-actions">
           <button type="button" className="btn btn-ghost" disabled={pending.has('welcome')} onClick={() => save(true)}>Skip setup</button>

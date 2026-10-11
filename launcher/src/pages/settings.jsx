@@ -24,7 +24,7 @@ export function SettingsPage({ state, run, pending, notify, connect, setPage }) 
     <form id="settings-form" className="settings" onSubmit={save}>
       <section className="panel">
         <h2>Runtime</h2>
-        <p>How Refract runs games. Games are installed separately for each runtime, so switching shows the games installed for that one.</p>
+        <p>Games are installed separately for each runtime.</p>
         <RuntimeChoice value={draft.backend} onChange={value => edit('backend', value)} />
       </section>
       <SetupPanel state={state} run={run} pending={pending} notify={notify} />

@@ -214,9 +214,8 @@ const methods = {
     // Start and prepare Android here (not in the session script) so the Refract runtime is current.
     starting = { gameId: id, stage: mode === 'vr' ? 'Checking VR headset' : 'Starting Android' }; changed();
     try {
-      // Refract Native has no Android to start (and no headset path yet).
-      if (!runtime.native) {
-        if (mode === 'vr') await runtime.checkHeadset();
+      if (mode === 'vr') await runtime.checkHeadset();
+      if (!runtime.native) {  // Refract Native has no Android to start.
         starting = { gameId: id, stage: 'Starting Android' }; changed();
         await exclusive(() => runtime.ensure(stage => { starting = { gameId: id, stage }; changed(); }));
       }

@@ -2,9 +2,9 @@ import { Cpu, Zap } from 'lucide-react';
 
 export const runtimes = [
   { id: 'emulator', title: 'Android emulator', icon: Cpu, tag: 'Most compatible',
-    text: 'Runs a virtual Android device with Refract’s ARM translator. Plays on a VR headset or in a window on this PC. Needs the Android SDK and Windows hardware acceleration.' },
+    text: 'Runs games in an Android emulator.' },
   { id: 'native', title: 'Refract Native', icon: Zap, tag: 'Experimental',
-    text: 'Runs games directly on this PC with no emulator: faster to start and lighter on memory. Plays in a window on this PC (no VR headset yet), and some games may not work. Needs Quest system files.' },
+    text: 'Runs games natively on the PC, no emulator.' },
 ];
 
 // Two cards to pick how Refract runs games. Used by the first-run wizard and Settings > Runtime.
