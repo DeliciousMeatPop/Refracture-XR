@@ -29,6 +29,16 @@ export const androidPackages = [
     dir: 'system-images/android-36/google_apis/x86_64', ready: async sdk => await property(path.join(sdk, 'system-images/android-36/google_apis/x86_64/source.properties'), 'Pkg.Revision') === '7' },
 ];
 
+// Refract Native takes its Android system files (libc, linker, runtime libraries) from Google's stock ARM64 image.
+export const nativeImage = { id: 'native-image', label: 'Android 14 ARM64 system files', file: 'sys-img/android/arm64-v8a-34_r04.zip', sha1: 'd9f2011131919abe952814e041f16f317242c3fa', size: 705115396,
+  dir: 'system-images/android-34/default/arm64-v8a' };
+export const nativeImageFile = sdk => path.join(sdk, nativeImage.dir, 'system.img');
+export async function installNativeImage(sdk, progress = () => {}) {
+  await fs.mkdir(sdk, { recursive: true });
+  if (!await exists(nativeImageFile(sdk))) await extract(sdk, nativeImage, await download(sdk, nativeImage, progress), progress);
+  await fs.rm(path.join(sdk, '.refract-downloads'), { recursive: true, force: true });
+}
+
 // On Intel + Windows Hypervisor Platform the stock emulator decides "not all modern x86 virtualization features"
 // are present and runs Android on one vCPU. A copy with that check's jump NOPed (tools/patch_emulator_cores.py)
 // uses the AVD's cores. Only for emulator 37.1.11 build 15917651; the original file is left alone.
