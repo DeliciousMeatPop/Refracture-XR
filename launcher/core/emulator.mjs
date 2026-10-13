@@ -291,10 +291,10 @@ $xr = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Khronos\\OpenXR\\1').ActiveRuntime
       'echo @@props', 'getprop',
       'echo @@meminfo', 'cat /proc/meminfo',
       'echo @@cpu', 'nproc', 'cat /proc/loadavg', 'cat /proc/uptime',
-      // Readable only as root (the emulator's userdebug build has su), like the start script's clock check.
-      'echo @@clock', 'su 0 cat /sys/devices/system/clocksource/clocksource0/current_clocksource 2>/dev/null',
+      // Readable by the shell user on Waydroid (which has no su); the emulator's userdebug build needs su, like the start script's clock check.
+      'echo @@clock', 'cat /sys/devices/system/clocksource/clocksource0/current_clocksource 2>/dev/null || su 0 cat /sys/devices/system/clocksource/clocksource0/current_clocksource 2>/dev/null',
       'echo @@kernel', 'uname -a',
-      'echo @@cmdline', 'su 0 cat /proc/cmdline 2>/dev/null',
+      'echo @@cmdline', 'cat /proc/cmdline 2>/dev/null || su 0 cat /proc/cmdline 2>/dev/null',
       'echo @@selinux', 'getenforce',
       'echo @@display', 'wm size', 'wm density',
       'echo @@gles', "timeout 8 dumpsys SurfaceFlinger 2>/dev/null | grep -m1 '^GLES'",
