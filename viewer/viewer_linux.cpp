@@ -15,6 +15,7 @@
 // frame-time graph, and, with --adb/--serial/--package, Android's CPU use and the game's busiest threads.
 #include "android_stats.h"
 #include "image_transport.h"
+#include "loading_screen.h"
 #include "linux_gpu_share.h"
 #include "windows_gpu_frame.h"
 
@@ -627,6 +628,58 @@ private:
     std::array<Glyph, '~' - ' ' + 1> glyphs_{};
 };
 
+// Shown until the game's first image arrives; the same card as the host bridge's (host-bridge/loading_screen.h),
+// drawn at the size shown (up to 1920 wide) and letterboxed at 1.6:1 like viewer.cpp's.
+class LoadingCard {
+public:
+    ~LoadingCard() { if (texture_) gl.DeleteTextures(1, &texture_); }
+
+    void draw(Renderer& r, int outputWidth, int outputHeight)
+    {
+        if (outputWidth < 64 || outputHeight < 64) return;
+        const auto now = Clock::now();
+        if (!started_) { started_ = true; start_ = now; }
+        const Rect view = fit(0, float(outputWidth), float(outputHeight), 1.6f);
+        const float scale = std::min(1.0f, 1920.0f / view.width);
+        const uint32_t width = uint32_t(view.width * scale), height = uint32_t(view.height * scale);
+        if (!screen_.prepared() || screen_.width() != width || screen_.height() != height) {
+            screen_.prepare(width, height);
+            if (texture_) gl.DeleteTextures(1, &texture_);
+            gl.CreateTextures(GL_TEXTURE_2D, 1, &texture_);
+            gl.TextureStorage2D(texture_, 1, GL_RGBA8, width, height);
+            uploaded_ = false;
+        }
+        screen_.animate(std::chrono::duration<double>(now - start_).count());
+        // The whole card once (and while it fades in); after that only the bar moves.
+        const auto bar = screen_.bar_rect();
+        const bool whole = screen_.fading() || !uploaded_;
+        const uint32_t left = whole ? 0 : bar.left, top = whole ? 0 : bar.top;
+        const uint32_t right = whole ? width : bar.right, bottom = whole ? height : bar.bottom;
+        gl.PixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        gl.PixelStorei(GL_UNPACK_ROW_LENGTH, GLint(screen_.stride() / 4));
+        gl.TextureSubImage2D(texture_, 0, left, top, right - left, bottom - top, GL_RGBA, GL_UNSIGNED_BYTE,
+            screen_.pixels() + size_t(top) * screen_.stride() + size_t(left) * 4);
+        gl.PixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        uploaded_ = !screen_.fading();
+
+        gl.Viewport(0, 0, outputWidth, outputHeight);
+        const float rect[4] = {-1 + 2.0f * view.x / outputWidth, 1 - 2.0f * (view.y + view.height) / outputHeight,
+            2.0f * view.width / outputWidth, 2.0f * view.height / outputHeight};
+        gl.UseProgram(r.overlay);
+        gl.BindVertexArray(r.vertexArray);
+        gl.BindTextureUnit(0, texture_);
+        gl.BindSampler(0, r.sampler);
+        gl.ProgramUniform4fv(r.overlay, r.overlayRect, 1, rect);
+        gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+
+private:
+    refract::host::LoadingScreen screen_;
+    GLuint texture_ = 0;
+    Clock::time_point start_{};
+    bool started_ = false, uploaded_ = false;  // uploaded_: the texture holds the whole card at full brightness.
+};
+
 // The F1 performance overlay, as viewer.cpp draws it: painted on the CPU into an RGBA image with premultiplied alpha
 // (at most 30 times a second), then shown over the image as one blended quad, pixel for pixel.
 class Overlay {
@@ -956,6 +1009,8 @@ int main(int argc, char** argv)
     };
 
     Overlay overlay;
+    LoadingCard loadingCard;
+    bool loading = true;  // Until the first image arrives.
     overlay.visible = stats;
     std::unique_ptr<AndroidStats> android;
     if (!adb.empty() && !serial.empty() && !package.empty()) {
@@ -975,7 +1030,7 @@ int main(int argc, char** argv)
 
     while (!closed) {
         SDL_Event event;
-        bool any = SDL_WaitEventTimeout(&event, 100);  // New frames wake it (g_shared.frameEvent).
+        bool any = SDL_WaitEventTimeout(&event, loading ? 8 : 100);  // New frames wake it (g_shared.frameEvent); the loading card animates.
         while (any) {
             switch (event.type) {
             // The hidden copy window stays open, so SDL would not send QUIT for the visible one closing.
@@ -1053,13 +1108,19 @@ int main(int argc, char** argv)
             const uint64_t updates = g_shared.scene.updates + g_shared.panels.updates;
             // The overlay's numbers move without new frames too (waiting, Android's CPU).
             if (overlay.visible && now - overlayDrawnAt > std::chrono::milliseconds(250)) redraw = true;
+            loading = !g_shared.scene.valid && !g_shared.panels.valid;
+            if (loading) redraw = true;
             if (redraw || updates != drawnUpdates) {
                 int outputWidth = 0, outputHeight = 0;
                 SDL_GetWindowSizeInPixels(window, &outputWidth, &outputHeight);
                 gl.Viewport(0, 0, outputWidth, outputHeight);
-                gl.ClearColor(0.05f, 0.05f, 0.06f, 1);
+                if (loading) gl.ClearColor(0, 0, 0, 1);
+                else gl.ClearColor(0.05f, 0.05f, 0.06f, 1);
                 gl.Clear(GL_COLOR_BUFFER_BIT);
-                if (slot.valid && slot.latest >= 0) {
+                if (loading) {
+                    loadingCard.draw(renderer, outputWidth, outputHeight);
+                    saveRequested = false;
+                } else if (slot.valid && slot.latest >= 0) {
                     slot.shown = slot.latest;
                     Entry& entry = slot.entries[slot.shown];
                     gl.UseProgram(renderer.scene);

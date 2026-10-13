@@ -208,4 +208,7 @@ render size per eye.
 its runtime inside the Flatpak sandbox, so a host bridge outside it may not reach it. A native Steam
 install, Monado or WiVRn avoids that.
 
-Not on Linux yet: the loading card, the in-headset stats panel, the desktop launcher, and Steam Link.
+The PC viewer shows the Refract loading card (the logo above a sliding bar) until the game's first
+frame arrives, as on Windows.
+
+Not on Linux yet: the in-headset loading card and stats panel, and Steam Link.

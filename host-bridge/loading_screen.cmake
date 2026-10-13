@@ -1,5 +1,5 @@
-# Adds the loading screen (loading_screen.cpp and the embedded logo) to a Windows target.
-# Used by host-bridge/ and by viewer/, which is a CMake project of its own.
+# Adds the loading screen (loading_screen.cpp and the embedded logo) to a target.
+# Used by host-bridge/, by viewer/ (a CMake project of its own) and by the Linux viewer.
 function(refract_add_loading_screen target)
   set(logo "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../img/Refract_logo_trans.png")
   set(generated "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -11,5 +11,7 @@ function(refract_add_loading_screen target)
     CONTENT "#pragma once\n// Generated from img/Refract_logo_trans.png by host-bridge/loading_screen.cmake.\nstatic const unsigned char kRefractLogoPng[] = {\n${logo_bytes}\n};\n")
   target_sources(${target} PRIVATE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/loading_screen.cpp")
   target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}" "${generated}")
-  target_link_libraries(${target} PRIVATE ole32 windowscodecs)  # WIC decodes the logo.
+  if(WIN32)
+    target_link_libraries(${target} PRIVATE ole32 windowscodecs)  # WIC decodes the logo; stb_image does elsewhere.
+  endif()
 endfunction()

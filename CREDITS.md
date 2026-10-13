@@ -29,3 +29,5 @@ Because of this, the launcher is distributed under GPL-3.0-or-later; see
   patches in [tools/translator/](tools/translator/) target it.
 - [stb_truetype](https://github.com/nothings/stb) by Sean Barrett (MIT or public domain): the
   Linux viewer's overlay text, in [viewer/stb_truetype.h](viewer/stb_truetype.h).
+- [stb_image](https://github.com/nothings/stb) by Sean Barrett (MIT or public domain): decodes the
+  loading card's logo on Linux, in [host-bridge/stb_image.h](host-bridge/stb_image.h).
