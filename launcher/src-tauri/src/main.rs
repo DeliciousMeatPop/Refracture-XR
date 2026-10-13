@@ -121,6 +121,11 @@ async fn login(app: &AppHandle, main: &WebviewWindow, backend: &Backend) -> Resu
 }
 
 fn main() {
+    // WebKitGTK's DMA-BUF renderer fails with Nvidia's driver on Wayland (the window dies with a protocol error).
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {

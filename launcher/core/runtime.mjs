@@ -33,9 +33,9 @@ export function headsetProblem(text) {
   return '';
 }
 
-export function run(executable, args, { timeout = 120000, onOutput = () => {}, cwd } = {}) {
+export function run(executable, args, { timeout = 120000, onOutput = () => {}, cwd, env } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(executable, args, { windowsHide: true, shell: false, cwd });
+    const child = spawn(executable, args, { windowsHide: true, shell: false, cwd, env: env ? { ...process.env, ...env } : undefined });
     let output = '', errors = '', settled = false;
     const timer = setTimeout(() => { child.kill(); finish(new Error('Operation timed out. Check the Android runtime and try again.')); }, timeout);
     function finish(error) { if (settled) return; settled = true; clearTimeout(timer); error ? reject(error) : resolve(output); }
@@ -98,9 +98,14 @@ export function validPackage(value) {
 }
 export class Runtime {
   constructor(root, settings) { this.root = root; this.settings = settings; this.child = null; this.game = null; this.found = null; }
+  get python() { return 'python'; }
+  get guestPackages() { return guestPackages; }
   // The emulator in use: the configured port, or another one running the same AVD (see locate()).
   get port() { return this.found ?? this.settings.port; }
-  adbAt(port, args, options) { return run(path.join(this.settings.sdk, 'platform-tools/adb.exe'), [...(port ? ['-s', `emulator-${port}`] : []), ...args], options); }
+  // The adb program and the device name for a port. Waydroid's runtime (waydroid.mjs) changes both.
+  adbExe() { return path.join(this.settings.sdk, 'platform-tools/adb.exe'); }
+  serial(port) { return `emulator-${port}`; }
+  adbAt(port, args, options) { return run(this.adbExe(), [...(port ? ['-s', this.serial(port)] : []), ...args], options); }
   adb(args, options) { return this.adbAt(this.port, args, options); }
   async online() { return Boolean(await this.locate()); }
   async avdName(port) { return (await this.adbAt(port, ['emu', 'avd', 'name'], { timeout: 5000 })).split(/\r?\n/)[0].trim(); }
@@ -189,7 +194,7 @@ export class Runtime {
     if (!await this.translatorCurrent()) {
       update('Installing the ARM translator (Android restarts)');
       await run('powershell.exe', powershellArgs(path.join(this.root, 'scripts/translator.ps1'), {
-        Use: 'digitalis', Refresh: true, Serial: `emulator-${this.port}`, Adb: path.join(this.settings.sdk, 'platform-tools/adb.exe') }), { timeout: 300000 });
+        Use: 'digitalis', Refresh: true, Serial: this.serial(this.port), Adb: this.adbExe() }), { timeout: 300000 });
       await sleep(5000); await this.waitBoot(this.port);
     }
     // Unmodified Quest games only use the Meta Platform SDK (Refract's stand-in) when Build.MANUFACTURER says
@@ -217,7 +222,7 @@ export class Runtime {
     if ((await this.adb(['shell', 'settings', 'get', 'global', 'hide_error_dialogs'])).trim() !== '1') {
       await this.adb(['shell', 'settings', 'put', 'global', 'hide_error_dialogs', '1']);
     }
-    for (const item of guestPackages) {
+    for (const item of this.guestPackages) {
       const apk = path.join(this.root, item.apk);
       const local = await sha256(apk).catch(() => { throw new Error(`${item.label} is not built (${item.apk}). Open Settings > Setup.`); });
       const installed = (await this.adb(['shell', 'pm', 'path', item.package]).catch(() => '')).match(/^package:(\S*base\.apk)/m)?.[1];
@@ -228,7 +233,7 @@ export class Runtime {
     }
   }
   async inspect(apk) {
-    const { libraries, ...data } = JSON.parse(await run('python', [path.join(this.root, 'launcher/inspect_apk.py'), '--apk', apk, '--sdk', this.settings.sdk]));
+    const { libraries, ...data } = JSON.parse(await run(this.python, [path.join(this.root, 'launcher/inspect_apk.py'), '--apk', apk, '--sdk', this.settings.sdk]));
     validPackage(data.package);
     return { ...data, vrSdk: vrSdk(libraries), apk: path.resolve(apk), source: 'local', id: `local:${data.package}` };
   }
@@ -244,8 +249,8 @@ export class Runtime {
     const activity = await launchable('resolve-activity', '--brief') ||
       await launchable('query-activities', '--brief', '-a', 'android.intent.action.MAIN', '-c', 'com.oculus.intent.category.VR');
     if (!activity) return null;
-    const metadata = JSON.parse(await run('python', [path.join(this.root, 'tools/android_app_label.py'), '--sdk', this.settings.sdk,
-      '--serial', `emulator-${this.port}`, '--package', packageName, '--icon-output', imagePath]));
+    const metadata = JSON.parse(await run(this.python, [path.join(this.root, 'tools/android_app_label.py'), '--sdk', this.settings.sdk,
+      '--serial', this.serial(this.port), '--package', packageName, '--icon-output', imagePath]));
     return { id: `local:${packageName}`, package: packageName, activity, name: metadata.label, source: 'installed', installed: true,
       image: metadata.icon ? `data:image/png;base64,${(await fs.readFile(metadata.icon)).toString('base64')}` : '' };
   }

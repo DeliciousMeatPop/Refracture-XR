@@ -7,7 +7,7 @@ import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { run, guestPackages, sha256, validPackage } from './runtime.mjs';
+import { run, sha256, validPackage } from './runtime.mjs';
 import { hypervisor } from './setup.mjs';
 import { avdHome } from './android_sdk.mjs';
 
@@ -33,7 +33,7 @@ export class Logcat {
     this.idle = setInterval(() => { if (this.child && Date.now() - this.lastRead > 60000) this.stop(); }, 15000);
     this.idle.unref();
   }
-  adb() { return path.join(this.runtime.settings.sdk, 'platform-tools/adb.exe'); }
+  adb() { return this.runtime.adbExe(); }
   push(entry) {
     this.entries.push([++this.seq, entry.time, entry.pid, entry.tid, entry.level, entry.tag, redact(entry.message)]);
     if (this.entries.length > this.capacity * 1.1) this.entries.splice(0, this.entries.length - this.capacity);
@@ -45,7 +45,7 @@ export class Logcat {
     try {
       const port = await this.runtime.findPort();
       if (!port) { this.error = 'Android is not running.'; return; }
-      const serial = `emulator-${port}`;
+      const serial = this.runtime.serial(port);
       // Continue from the last line on the same device (skipping what is already here); otherwise the recent backlog.
       const last = serial === this.serial ? this.entries.findLast(e => e[1])?.[1] : '';
       if (this.serial && serial !== this.serial) this.note(`Connected to ${serial}`);
@@ -249,7 +249,7 @@ ConvertTo-Json -InputObject $list -Compress -Depth 2`;
     }
     return {
       state: port ? (booted ? 'running' : 'booting') : qemu ? 'starting' : 'stopped',
-      port, serial: port ? `emulator-${port}` : '', configuredPort: this.settings.port, avd: this.settings.avd,
+      port, serial: port ? this.runtime.serial(port) : '', configuredPort: this.settings.port, avd: this.settings.avd,
       adopted: Boolean(port && port !== this.settings.port), startedHere: Boolean(this.runtime.started), game: this.runtime.game,
       qemu, guest, processes: processes.map(({ command, ...p }) => ({ ...p, command: redact(command) })), logcat: { running: Boolean(this.logcat.child), lines: this.logcat.entries.length },
     };
@@ -259,7 +259,7 @@ ConvertTo-Json -InputObject $list -Compress -Depth 2`;
   async info() {
     const port = await this.runtime.findPort();
     const [host, guest, components] = await Promise.all([this.hostInfo(), port ? this.guestInfo(port) : null, this.components(port)]);
-    return { collected: new Date().toISOString(), port, serial: port ? `emulator-${port}` : '', host, guest, components };
+    return { collected: new Date().toISOString(), port, serial: port ? this.runtime.serial(port) : '', host, guest, components };
   }
 
   async hostInfo() {
@@ -274,7 +274,7 @@ $xr = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Khronos\\OpenXR\\1').ActiveRuntime
     const [system, emulatorVersion, adbVersion, commit, acceleration] = await Promise.all([
       powershell(script).then(t => JSON.parse(t.trim()), () => ({})),
       fs.readFile(path.join(sdk, 'emulator/source.properties'), 'utf8').then(t => t.match(/Pkg\.Revision=(.+)/)?.[1].trim() || '', () => ''),
-      run(path.join(sdk, 'platform-tools/adb.exe'), ['version'], { timeout: 5000 }).then(t => t.split(/\r?\n/).slice(0, 2).join(' · '), () => ''),
+      run(this.runtime.adbExe(), ['version'], { timeout: 5000 }).then(t => t.split(/\r?\n/).slice(0, 2).join(' · '), () => ''),
       run('git', ['-C', this.root, 'log', '-1', '--format=%h %cs %s'], { timeout: 5000 }).then(t => t.trim(), () => ''),
       hypervisor(sdk).then(c => ({ ok: c.ok, detail: c.detail }), () => null),
     ]);
@@ -284,7 +284,7 @@ $xr = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Khronos\\OpenXR\\1').ActiveRuntime
   }
 
   async guestInfo(port) {
-    const packages = guestPackages.map(p => p.package).join(' ');
+    const packages = this.runtime.guestPackages.map(p => p.package).join(' ');
     // One adb round trip. No double quotes: the script passes through Windows argument quoting.
     // dumpsys and top get their own time limit: a busy or stuck system service must not take the rest with it.
     const script = [
@@ -340,7 +340,7 @@ $xr = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Khronos\\OpenXR\\1').ActiveRuntime
       { label: 'Host bridge', file: 'build-windows-nvidia/host-bridge/refract-host-bridge.exe' },
       { label: 'PC viewer', file: 'viewer/build/refract_viewer.exe' },
       { label: 'GPU sharing layer', file: 'build-windows-gpu-layer/Release/refract_gpu_layer.json' },
-      ...guestPackages.map(p => ({ label: p.label, file: p.apk, package: p.package })),
+      ...this.runtime.guestPackages.map(p => ({ label: p.label, file: p.apk, package: p.package })),
     ];
     return Promise.all(files.map(async item => {
       const full = path.join(this.root, item.file);
@@ -365,7 +365,7 @@ $xr = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Khronos\\OpenXR\\1').ActiveRuntime
   // adb's stdout and stderr and exit code, whatever the exit code (no exception for a failing command).
   capture(port, args, timeout) {
     return new Promise(resolve => {
-      const child = spawn(path.join(this.settings.sdk, 'platform-tools/adb.exe'), ['-s', `emulator-${port}`, ...args], { windowsHide: true });
+      const child = spawn(this.runtime.adbExe(), ['-s', this.runtime.serial(port), ...args], { windowsHide: true });
       let stdout = '', stderr = '', timedOut = false;
       child.stdout.on('data', b => { stdout += b.toString(); });
       child.stderr.on('data', b => { stderr = (stderr + b.toString()).slice(-16384); });
@@ -382,13 +382,13 @@ $xr = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Khronos\\OpenXR\\1').ActiveRuntime
     if (!port) throw new Error('Android is not running.');
     const started = Date.now();
     return new Promise(resolve => {
-      const child = spawn(path.join(this.settings.sdk, 'platform-tools/adb.exe'), ['-s', `emulator-${port}`, 'shell', command], { windowsHide: true });
+      const child = spawn(this.runtime.adbExe(), ['-s', this.runtime.serial(port), 'shell', command], { windowsHide: true });
       let output = '', truncated = false;
       const add = b => { if (output.length < 1024 * 1024) output += b.toString(); else truncated = true; };
       child.stdout.on('data', add); child.stderr.on('data', add);
       const timer = setTimeout(() => { truncated = true; output += '\n[stopped after 60 seconds]'; child.kill(); }, 60000);
       child.on('error', e => { clearTimeout(timer); resolve({ code: -1, output: e.message, ms: Date.now() - started }); });
-      child.on('close', code => { clearTimeout(timer); resolve({ code, output: redact(output.replace(/\r\n/g, '\n')), truncated, ms: Date.now() - started, serial: `emulator-${port}` }); });
+      child.on('close', code => { clearTimeout(timer); resolve({ code, output: redact(output.replace(/\r\n/g, '\n')), truncated, ms: Date.now() - started, serial: this.runtime.serial(port) }); });
     });
   }
 
@@ -417,7 +417,7 @@ $xr = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Khronos\\OpenXR\\1').ActiveRuntime
     if (!text.includes('@@end')) throw new Error(`Android did not report its storage (${result.timedOut ? 'timed out' : `adb exit code ${result.code}`}): ${redact(result.stderr.trim().split('\n').pop() || 'no output')}`);
     const [, total, used, free] = section(text, 'df').trim().split(/\s+/).map(Number);
     const all = new Set(section(text, 'all').split('\n').map(s => s.trim()).filter(Boolean));
-    const components = new Set(guestPackages.map(p => p.package));
+    const components = new Set(this.runtime.guestPackages.map(p => p.package));
     const apps = section(text, 'apps').split('\n').map(line => line.trim().split(' ')).filter(f => f.length === 6).map(([name, ...kb]) => {
       const [apk, data, external, cache, obb] = kb.map(n => Number(n) * 1024);
       return { package: name, apk, data, external, cache, obb, total: apk + data + external + obb, component: components.has(name) };

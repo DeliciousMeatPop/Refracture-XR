@@ -18,7 +18,7 @@ export function TitleBar() {
 const pages = [
   ['library', 'Library', LayoutGrid],
   ['downloads', 'Downloads', ArrowDownToLine],
-  ['emulator', 'Emulator', Cpu],
+  ['emulator', 'Emulator', Cpu],  // Called Android on Linux (see Sidebar).
   ['settings', 'Settings', Settings],
 ];
 
@@ -36,7 +36,7 @@ export function Sidebar({ page, setPage, state, activeJobs, connecting, onConnec
     <nav className="nav" aria-label="Main navigation">
       {pages.map(([id, label, Icon]) => <button key={id} type="button" className="nav-item" data-nav={id}
         aria-current={page === id ? 'page' : undefined} onClick={() => setPage(id)}>
-        <Icon />{label}
+        <Icon />{id === 'emulator' && state.platform === 'linux' ? 'Android' : label}
         {id === 'downloads' && activeJobs > 0 && <span className="nav-badge">{activeJobs}</span>}
       </button>)}
     </nav>
