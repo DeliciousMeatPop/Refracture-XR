@@ -26,3 +26,5 @@ Because of this, the launcher is distributed under GPL-3.0-or-later; see
   (AOSP) and Digitalis (Apache-2.0): the ARM64-to-x86_64 translator. Its prebuilt binaries are
   redistributed in [prebuilts/digitalis/](prebuilts/digitalis/) (see its NOTICE), and the
   patches in [tools/translator/](tools/translator/) target it.
+- [stb_truetype](https://github.com/nothings/stb) by Sean Barrett (MIT or public domain): the
+  Linux viewer's overlay text, in [viewer/stb_truetype.h](viewer/stb_truetype.h).

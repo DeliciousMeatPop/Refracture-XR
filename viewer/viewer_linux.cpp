@@ -28,6 +28,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#define STBTT_STATIC
+#include "stb_truetype.h"
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -38,6 +42,8 @@
 #include <cstring>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -366,7 +372,7 @@ void main() {
 }
 )";
 
-// The F1 overlay: an RGBA image drawn at a pixel rectangle of the window (top-left origin), alpha-blended.
+// The F1 overlay: an RGBA image (premultiplied alpha) drawn at a pixel rectangle of the window (top-left origin).
 const char kOverlayVertex[] = R"(#version 450 core
 uniform vec4 rect;  // x, y, width, height in clip space, y up
 out vec2 uv;
@@ -556,8 +562,73 @@ void save_screenshot(const Slot& slot, GLuint texture, const std::string& folder
     SDL_DestroySurface(surface);
 }
 
-// The F1 performance overlay, as viewer.cpp draws it: drawn on the CPU with SDL's built-in 8x8 font into an RGBA
-// surface (at most 30 times a second), then shown over the image as one blended quad, pixel for pixel.
+// The F1 overlay's font: the desktop's monospace TrueType font (fontconfig's pick, else a common one), rasterized
+// with stb_truetype, antialiased, at the overlay's pixel size. Every character sits in a whole-pixel column, so the
+// overlay's number columns line up as they do in a terminal.
+class MonoFont {
+public:
+    struct Glyph {
+        int width = 0, height = 0, left = 0, top = 0;  // Bitmap size and offset from the pen on the baseline.
+        std::vector<uint8_t> coverage;
+    };
+    int advance = 0, lineHeight = 0, ascent = 0;
+
+    bool load()
+    {
+        std::vector<std::string> paths;
+        if (FILE* pipe = popen("fc-match -f '%{file}' monospace 2>/dev/null", "r")) {
+            char path[4096]{};
+            if (std::fgets(path, sizeof(path), pipe)) paths.emplace_back(path);
+            pclose(pipe);
+        }
+        for (const char* path : {"/usr/share/fonts/google-noto/NotoSansMono-Regular.ttf",
+                                 "/usr/share/fonts/dejavu-sans-mono-fonts/DejaVuSansMono.ttf",
+                                 "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
+                                 "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Regular.ttf",
+                                 "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf"})
+            paths.emplace_back(path);
+        for (const std::string& path : paths) {
+            std::ifstream file(path, std::ios::binary);
+            data_.assign(std::istreambuf_iterator<char>(file), {});
+            const int offset = data_.empty() ? -1 : stbtt_GetFontOffsetForIndex(data_.data(), 0);
+            if (offset >= 0 && stbtt_InitFont(&info_, data_.data(), offset)) {
+                std::fprintf(stderr, "viewer: overlay font %s\n", path.c_str());
+                return true;
+            }
+        }
+        data_.clear();
+        std::fprintf(stderr, "viewer: no monospace TrueType font found; the overlay uses SDL's 8x8 font\n");
+        return false;
+    }
+
+    // Rasterizes the printable ASCII characters at an em size in pixels.
+    void set_size(float pixels)
+    {
+        const float scale = stbtt_ScaleForMappingEmToPixels(&info_, pixels);
+        int ascender = 0, descender = 0, gap = 0, width = 0, bearing = 0;
+        stbtt_GetFontVMetrics(&info_, &ascender, &descender, &gap);
+        stbtt_GetCodepointHMetrics(&info_, '0', &width, &bearing);
+        advance = std::max(1, int(std::lround(width * scale)));
+        ascent = int(std::lround(ascender * scale));
+        lineHeight = int(std::ceil((ascender - descender + gap) * scale));
+        for (int c = ' '; c <= '~'; ++c) {
+            Glyph& glyph = glyphs_[c - ' '];
+            unsigned char* bitmap = stbtt_GetCodepointBitmap(&info_, scale, scale, c, &glyph.width, &glyph.height, &glyph.left, &glyph.top);
+            glyph.coverage.assign(bitmap, bitmap + size_t(glyph.width) * glyph.height);
+            stbtt_FreeBitmap(bitmap, nullptr);
+        }
+    }
+
+    const Glyph& glyph(char c) const { return glyphs_[(c >= ' ' && c <= '~' ? c : '?') - ' ']; }
+
+private:
+    std::vector<unsigned char> data_;
+    stbtt_fontinfo info_{};
+    std::array<Glyph, '~' - ' ' + 1> glyphs_{};
+};
+
+// The F1 performance overlay, as viewer.cpp draws it: painted on the CPU into an RGBA image with premultiplied alpha
+// (at most 30 times a second), then shown over the image as one blended quad, pixel for pixel.
 class Overlay {
 public:
     bool visible = true;
@@ -567,23 +638,12 @@ public:
     // Call with g_shared.mutex held: reads the frame intervals and the shown slot.
     void update(const Slot& slot, int outputHeight)
     {
-        const int scale = outputHeight >= 1000 ? 2 : 1;
+        // 15 px text (as viewer.cpp's Consolas) up to a 1080-pixel-tall window, larger in quarter steps above.
+        const float scale = std::clamp(std::floor(outputHeight / 1080.0f * 4) / 4, 1.0f, 2.0f);
         const auto now = Clock::now();
-        if (scale == scale_ && surface_ && now - updatedAt_ < std::chrono::milliseconds(33)) return;
+        if (scale == scale_ && texture_ && now - updatedAt_ < std::chrono::milliseconds(33)) return;
         updatedAt_ = now;
-        if (scale != scale_ || !surface_) {
-            if (cpu_) SDL_DestroyRenderer(cpu_);
-            if (surface_) SDL_DestroySurface(surface_);
-            if (texture_) gl.DeleteTextures(1, &texture_);
-            scale_ = scale;
-            surface_ = SDL_CreateSurface(kWidth * scale, kHeight * scale, SDL_PIXELFORMAT_RGBA32);
-            cpu_ = surface_ ? SDL_CreateSoftwareRenderer(surface_) : nullptr;
-            if (!cpu_) return;
-            SDL_SetRenderScale(cpu_, float(scale), float(scale));
-            gl.CreateTextures(GL_TEXTURE_2D, 1, &texture_);
-            gl.TextureStorage2D(texture_, 1, GL_RGBA8, kWidth * scale, kHeight * scale);
-        }
-        if (!cpu_) return;
+        if (scale != scale_ || !texture_) resize(scale);
 
         std::vector<float> frames;  // Oldest first.
         for (size_t i = 0; i < g_shared.intervalCount; ++i)
@@ -629,63 +689,148 @@ public:
         }
         lines.push_back("(thread % = share of one core)   F1 hide");
 
-        SDL_SetRenderDrawBlendMode(cpu_, SDL_BLENDMODE_NONE);
-        SDL_SetRenderDrawColor(cpu_, 0, 0, 0, 0);
-        SDL_RenderClear(cpu_);
-        SDL_SetRenderDrawColor(cpu_, 0, 0, 0, 153);
-        SDL_RenderFillRect(cpu_, nullptr);
-        SDL_SetRenderDrawBlendMode(cpu_, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(cpu_, 255, 255, 255, 255);
-        for (size_t i = 0; i < lines.size(); ++i)
-            SDL_RenderDebugText(cpu_, kPad, kPad + float(i) * kLine, lines[i].c_str());
-        // Frame-time graph, newest on the right; 0-33 ms tall, lines at 90 and 60 fps.
-        const float graphTop = kPad + kTextLines * kLine + 6, graphBottom = graphTop + kGraph, scale30 = kGraph / 33.3f;
-        const float barWidth = (kWidth - 2 * kPad) / float(g_shared.intervals.size());
+        std::fill(pixels_.begin(), pixels_.end(), 0);
+        fill(0, 0, width_, height_, kBlack, 153);
+        if (fallback_) {
+            for (size_t i = 0; i < lines.size(); ++i)
+                SDL_RenderDebugText(fallback_, float(pad_) / fallbackScale_, float(textTop_ + int(i) * font_.lineHeight) / fallbackScale_, lines[i].c_str());
+            SDL_FlushRenderer(fallback_);
+        } else {
+            for (size_t i = 0; i < lines.size(); ++i) draw_text(pad_, textTop_ + int(i) * font_.lineHeight + font_.ascent, lines[i]);
+        }
+        // Frame-time graph, newest on the right; 0-33 ms tall, lines at 90 and 60 fps. Bars split the graph's width
+        // at whole pixels, so neighbors touch with no gap, and a bar's top row is shaded by how much of it is covered.
+        const int graphWidth = width_ - 2 * pad_, slots = int(g_shared.intervals.size());
+        const float perMs = float(graphHeight_) / 33.3f;
         for (size_t i = 0; i < frames.size(); ++i) {
             const float ms = frames[i];
-            if (ms <= 11.2f) SDL_SetRenderDrawColor(cpu_, 77, 217, 102, 255);
-            else if (ms <= 16.7f) SDL_SetRenderDrawColor(cpu_, 242, 204, 51, 255);
-            else SDL_SetRenderDrawColor(cpu_, 242, 77, 64, 255);
-            const float left = kPad + (g_shared.intervals.size() - frames.size() + i) * barWidth;
-            const float top = std::max(graphTop, graphBottom - ms * scale30);
-            const SDL_FRect bar{left, top, barWidth, graphBottom - top};
-            SDL_RenderFillRect(cpu_, &bar);
+            const Color color = ms <= 11.2f ? Color{77, 217, 102} : ms <= 16.7f ? Color{242, 204, 51} : Color{242, 77, 64};
+            const int index = slots - int(frames.size()) + int(i);
+            const int left = pad_ + index * graphWidth / slots, right = pad_ + (index + 1) * graphWidth / slots;
+            const float top = std::max(float(graphTop_), float(graphBottom()) - ms * perMs);
+            const int full = int(std::ceil(top));
+            fill(left, full, right, graphBottom(), color, 255);
+            if (full > graphTop_) fill(left, full - 1, right, full, color, int(std::lround((full - top) * 255)));
         }
-        SDL_SetRenderDrawColor(cpu_, 255, 255, 255, 89);
-        for (float ms : {11.1f, 16.7f})
-            SDL_RenderLine(cpu_, kPad, graphBottom - ms * scale30, kWidth - kPad, graphBottom - ms * scale30);
-        SDL_FlushRenderer(cpu_);
+        const int thickness = std::max(1, int(std::lround(scale)));
+        for (float ms : {11.1f, 16.7f}) {
+            const int y = int(std::lround(graphBottom() - ms * perMs));
+            fill(pad_, y, width_ - pad_, y + thickness, kWhite, 89);
+        }
         gl.PixelStorei(GL_UNPACK_ALIGNMENT, 4);
-        gl.PixelStorei(GL_UNPACK_ROW_LENGTH, surface_->pitch / 4);
-        gl.TextureSubImage2D(texture_, 0, 0, 0, surface_->w, surface_->h, GL_RGBA, GL_UNSIGNED_BYTE, surface_->pixels);
-        gl.PixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        gl.TextureSubImage2D(texture_, 0, 0, 0, width_, height_, GL_RGBA, GL_UNSIGNED_BYTE, pixels_.data());
     }
 
-    // Draws over the whole window's viewport, 12 pixels from the top-left corner.
+    // Draws over the whole window's viewport, 12 pixels (scaled) from the top-left corner.
     void draw(Renderer& r, int outputWidth, int outputHeight) const
     {
-        if (!texture_ || !surface_) return;
+        if (!texture_) return;
         gl.Viewport(0, 0, outputWidth, outputHeight);
-        const float width = 2.0f * surface_->w / outputWidth, height = 2.0f * surface_->h / outputHeight;
-        const float rect[4] = {-1 + 2.0f * 12 / outputWidth, 1 - 2.0f * 12 / outputHeight - height, width, height};
+        const float margin = std::round(12 * scale_);
+        const float width = 2.0f * width_ / outputWidth, height = 2.0f * height_ / outputHeight;
+        const float rect[4] = {-1 + 2.0f * margin / outputWidth, 1 - 2.0f * margin / outputHeight - height, width, height};
         gl.UseProgram(r.overlay);
         gl.BindVertexArray(r.vertexArray);
         gl.BindTextureUnit(0, texture_);
         gl.BindSampler(0, 0);
         gl.ProgramUniform4fv(r.overlay, r.overlayRect, 1, rect);
         gl.Enable(GL_BLEND);
-        gl.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        gl.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);  // Premultiplied alpha.
         gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         gl.Disable(GL_BLEND);
     }
 
 private:
-    static constexpr int kTextLines = 6, kLine = 11, kPad = 8, kGraph = 70;
-    static constexpr int kWidth = 74 * 8 + 2 * kPad, kHeight = kPad + kTextLines * kLine + 6 + kGraph + kPad;
-    SDL_Surface* surface_ = nullptr;
-    SDL_Renderer* cpu_ = nullptr;
+    struct Color { uint8_t r, g, b; };
+    static constexpr Color kBlack{0, 0, 0}, kWhite{255, 255, 255};
+    static constexpr int kTextLines = 6, kColumns = 74;
+
+    int graphBottom() const { return graphTop_ + graphHeight_; }
+
+    // Lays the card out for a scale (1 = 15 px text) and makes its image and texture.
+    void resize(float scale)
+    {
+        if (!fontLoaded_) {
+            fontLoaded_ = true;
+            hasFont_ = font_.load();
+        }
+        scale_ = scale;
+        if (hasFont_) {
+            font_.set_size(15 * scale);
+        } else {  // SDL's 8x8 font, at a whole multiple.
+            fallbackScale_ = scale >= 1.5f ? 2 : 1;
+            font_.advance = 8 * fallbackScale_;
+            font_.lineHeight = 11 * fallbackScale_;
+        }
+        pad_ = int(std::lround(10 * scale));
+        textTop_ = int(std::lround(8 * scale));
+        graphTop_ = textTop_ + kTextLines * font_.lineHeight + int(std::lround(8 * scale));
+        graphHeight_ = int(std::lround(70 * scale));
+        width_ = 2 * pad_ + kColumns * font_.advance;
+        height_ = graphBottom() + pad_;
+        pixels_.assign(size_t(width_) * height_ * 4, 0);
+        if (fallback_) SDL_DestroyRenderer(fallback_);
+        if (fallbackSurface_) SDL_DestroySurface(fallbackSurface_);
+        fallback_ = nullptr;
+        fallbackSurface_ = nullptr;
+        if (!hasFont_) {
+            fallbackSurface_ = SDL_CreateSurfaceFrom(width_, height_, SDL_PIXELFORMAT_RGBA32, pixels_.data(), width_ * 4);
+            fallback_ = fallbackSurface_ ? SDL_CreateSoftwareRenderer(fallbackSurface_) : nullptr;
+            if (fallback_) {
+                SDL_SetRenderScale(fallback_, float(fallbackScale_), float(fallbackScale_));
+                SDL_SetRenderDrawBlendMode(fallback_, SDL_BLENDMODE_BLEND);
+                SDL_SetRenderDrawColor(fallback_, 255, 255, 255, 255);
+            }
+        }
+        if (texture_) gl.DeleteTextures(1, &texture_);
+        gl.CreateTextures(GL_TEXTURE_2D, 1, &texture_);
+        gl.TextureStorage2D(texture_, 1, GL_RGBA8, width_, height_);
+    }
+
+    // Blends a color at a coverage (0-255) over the rectangle [x0, x1) x [y0, y1).
+    void fill(int x0, int y0, int x1, int y1, Color color, int coverage)
+    {
+        x0 = std::max(x0, 0), y0 = std::max(y0, 0), x1 = std::min(x1, width_), y1 = std::min(y1, height_);
+        for (int y = y0; y < y1; ++y)
+            for (int x = x0; x < x1; ++x) blend(x, y, color, coverage);
+    }
+
+    void blend(int x, int y, Color color, int coverage)
+    {
+        uint8_t* p = &pixels_[(size_t(y) * width_ + x) * 4];
+        const int keep = 255 - coverage;
+        p[0] = uint8_t((color.r * coverage + p[0] * keep + 127) / 255);
+        p[1] = uint8_t((color.g * coverage + p[1] * keep + 127) / 255);
+        p[2] = uint8_t((color.b * coverage + p[2] * keep + 127) / 255);
+        p[3] = uint8_t(coverage + (p[3] * keep + 127) / 255);
+    }
+
+    // White text with its baseline at y, one character per column from x.
+    void draw_text(int x, int baseline, const std::string& text)
+    {
+        for (size_t i = 0; i < text.size(); ++i, x += font_.advance) {
+            const MonoFont::Glyph& glyph = font_.glyph(text[i]);
+            for (int row = 0; row < glyph.height; ++row) {
+                const int y = baseline + glyph.top + row;
+                if (y < 0 || y >= height_) continue;
+                for (int column = 0; column < glyph.width; ++column) {
+                    const int px = x + glyph.left + column;
+                    const int coverage = glyph.coverage[size_t(row) * glyph.width + column];
+                    if (coverage && px >= 0 && px < width_) blend(px, y, kWhite, coverage);
+                }
+            }
+        }
+    }
+
+    MonoFont font_;
+    bool fontLoaded_ = false, hasFont_ = false;
+    SDL_Surface* fallbackSurface_ = nullptr;
+    SDL_Renderer* fallback_ = nullptr;
+    int fallbackScale_ = 1;
+    std::vector<uint8_t> pixels_;
+    int width_ = 0, height_ = 0, pad_ = 0, textTop_ = 0, graphTop_ = 0, graphHeight_ = 0;
     GLuint texture_ = 0;
-    int scale_ = 0;
+    float scale_ = 0;
     Clock::time_point updatedAt_{};
 };
 
