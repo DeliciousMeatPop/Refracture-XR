@@ -120,6 +120,27 @@ async fn login(app: &AppHandle, main: &WebviewWindow, backend: &Backend) -> Resu
     backend.request("authComplete", vec![Value::String(callback)]).await
 }
 
+/// Wayland desktops take a window's taskbar icon from a desktop entry named after its app id, which for this
+/// window is the program's file name (refract-launcher); a program run from its build folder has no such entry. Writes one for the running program, and the
+/// icon it names, under ~/.local/share; rewritten when the program moves.
+#[cfg(target_os = "linux")]
+fn install_desktop_entry() {
+    let Some(share) = std::env::var_os("XDG_DATA_HOME").map(std::path::PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| std::path::Path::new(&home).join(".local/share"))) else { return };
+    let Ok(exe) = std::env::current_exe() else { return };
+    let Some(identifier) = exe.file_stem().and_then(|name| name.to_str()) else { return };
+    let icon = share.join("icons/hicolor/128x128/apps").join(format!("{identifier}.png"));
+    let entry = share.join("applications").join(format!("{identifier}.desktop"));
+    let text = format!(
+        "[Desktop Entry]\nType=Application\nName=Refract\nComment=Play Quest games on this PC\nExec={}\nIcon={}\nCategories=Game;\nStartupWMClass={identifier}\nTerminal=false\n",
+        exe.display(), icon.display());
+    if std::fs::read_to_string(&entry).is_ok_and(|current| current == text) { return; }
+    for (path, bytes) in [(&icon, Some(include_bytes!("../icons/128x128.png").as_slice())), (&entry, None)] {
+        if let Some(dir) = path.parent() { let _ = std::fs::create_dir_all(dir); }
+        let _ = match bytes { Some(bytes) => std::fs::write(path, bytes), None => std::fs::write(path, &text) };
+    }
+}
+
 fn main() {
     // WebKitGTK's DMA-BUF renderer fails with Nvidia's driver on Wayland (the window dies with a protocol error).
     #[cfg(target_os = "linux")]
@@ -140,6 +161,13 @@ fn main() {
             let data_dir = app.path().data_dir()?.join("Refract");
             let backend = Backend::start(app.handle().clone(), data_dir)?;
             app.manage(backend);
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_icon(tauri::include_image!("icons/128x128.png"));  // X11 reads it from the window.
+                }
+                install_desktop_entry();
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
