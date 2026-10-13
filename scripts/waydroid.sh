@@ -9,6 +9,9 @@
 #   sudo scripts/waydroid.sh setup [options]  One time: Waydroid, Android 16, the GPU stack, the ARM64 translator,
 #                                             the Quest identity and network access.
 #   scripts/waydroid.sh install [APK...]      Installs Refract's Android packages, and game APKs if given.
+#   scripts/waydroid.sh start                 Starts the Venus renderer and Waydroid's session, and connects adb
+#                                             (play does this too). Prints the adb address.
+#   scripts/waydroid.sh stop                  Stops Waydroid's session.
 #   scripts/waydroid.sh play [PACKAGE] [options]
 #                                             Plays a game (default: North Star) in a window on this PC, like
 #                                             run_windows_game.ps1 -PcViewer. Closing the window or Ctrl+C stops it.
@@ -25,6 +28,7 @@
 # play options:
 #   --activity NAME           The activity to start (default: the app's launcher or Meta VR activity).
 #   --name TEXT               The window title (default: the app's name from its APK).
+#   --user-id N               The Meta user ID games see (default: scripts/platform_user_id.txt).
 #   --owned                   Report the game as owned to the Meta Platform stand-in (as owned_games.txt does).
 #   --eye-size PIXELS         Square render size per eye in the PC window (512-4096, default 1600).
 #   --headset                 Play on a headset through the PC OpenXR runtime (the host bridge) instead.
@@ -709,6 +713,33 @@ cmd_install() {
     done
 }
 
+# Brings Android up as play does, without a game: the renderer, the session, adb. Prints the adb address.
+cmd_start() {
+    SESSION_LOGS="$ROOT/runs/waydroid-session"
+    mkdir -p "$SESSION_LOGS"
+    if venus_mode; then
+        systemctl --user is-active --quiet "$VENUS_UNIT" || systemctl --user start "$VENUS_UNIT" ||
+            die "the Venus renderer did not start: journalctl --user -u $VENUS_UNIT"
+    fi
+    if ! session_running; then
+        say "Starting Waydroid"
+        nohup waydroid session start >"$SESSION_LOGS/waydroid-session.log" 2>&1 &
+        for _ in $(seq 90); do session_running && break; sleep 1; done
+        session_running || die "Waydroid's session did not start (log: runs/waydroid-session/waydroid-session.log)"
+    fi
+    connect_adb
+    echo "$SERIAL"
+}
+
+cmd_stop() {
+    session_running || return 0
+    say "Stopping Waydroid"
+    waydroid session stop
+    # The renderer keeps state from Android's graphics clients: SurfaceFlinger aborts in a loop against a renderer that
+    # has seen a session stop, and Android never boots. A fresh renderer starts the next session cleanly.
+    if venus_mode; then systemctl --user restart "$VENUS_UNIT" || warn "could not restart the Venus renderer"; fi
+}
+
 # The activity a launcher would start: the normal launcher entry, else Meta's VR category.
 resolve_activity() {
     local category found
@@ -743,12 +774,13 @@ last_error() { grep -v '^[[:space:]]*$' "$SESSION_LOGS/$1.err" 2>/dev/null | tai
 cmd_play() {
     local package="$DEFAULT_PACKAGE"
     [[ $# -gt 0 && "$1" != -* ]] && { package="$1"; shift; }
-    local activity="" name="" owned=0 eye=1600 headset=0 scale=100 unreal_policy=1 uncapped=0 run="waydroid-$(date +%Y%m%d-%H%M%S)"
+    local user_id_arg="" activity="" name="" owned=0 eye=1600 headset=0 scale=100 unreal_policy=1 uncapped=0 run="waydroid-$(date +%Y%m%d-%H%M%S)"
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --activity) activity="${2:?}"; shift 2 ;;
             --name) name="${2:?}"; shift 2 ;;
             --owned) owned=1; shift ;;
+            --user-id) user_id_arg="${2:?}"; shift 2 ;;
             --eye-size) eye="${2:?}"; shift 2 ;;
             --headset) headset=1; shift ;;
             --render-scale) scale="${2:?}"; shift 2 ;;
@@ -773,7 +805,7 @@ cmd_play() {
         systemctl --user is-active --quiet "$VENUS_UNIT" || systemctl --user start "$VENUS_UNIT" ||
             die "the Venus renderer did not start: journalctl --user -u $VENUS_UNIT"
         # The PC viewer imports the eye images Refract's GPU layer shares from the renderer (as on Windows).
-        [[ $headset == 0 && -f "$GPU_LAYER_DIR/librefract_gpu_layer.so" ]] && gpu_share=1
+        [[ $headset == 0 && ${REFRACT_GPU_SHARE:-1} == 1 && -f "$GPU_LAYER_DIR/librefract_gpu_layer.so" ]] && gpu_share=1  # REFRACT_GPU_SHARE=0: testing
     fi
     if ! session_running; then
         say "Starting Waydroid"
@@ -800,8 +832,9 @@ cmd_play() {
     if [[ $owned == 0 && -f "$owned_file" ]] && grep -v '^[[:space:]]*#' "$owned_file" | tr -d ' \t\r' | grep -qxF "$package"; then
         owned=1
     fi
-    local user_id=""
-    [[ -f "$user_file" ]] && user_id="$(grep -v '^[[:space:]]*#' "$user_file" | tr -d ' \t\r' | grep -m1 . || true)"
+    [[ -z "$user_id_arg" || "$user_id_arg" =~ ^[0-9]+$ ]] || die "--user-id is a number"
+    local user_id="$user_id_arg"
+    [[ -z "$user_id" && -f "$user_file" ]] && user_id="$(grep -v '^[[:space:]]*#' "$user_file" | tr -d ' \t\r' | grep -m1 . || true)"
 
     # Session properties, as run_windows_game.ps1 sets them. debug.refract.host_addr points the runtime straight
     # at this PC (the emulator uses adb reverse instead).
@@ -830,6 +863,17 @@ cmd_play() {
     # app's crash or "not responding" dialog either, and it keeps the game from becoming the resumed activity.
     adb_s shell 'settings put secure immersive_mode_confirmations confirmed; settings put global hide_error_dialogs 1' >/dev/null 2>&1 ||
         warn "could not hide Android's full-screen notice and error dialogs"
+    # A lock screen takes focus from the game the same way (Android shows one after every boot), and apps behind it
+    # get no network, so the runtime cannot reach the viewer.
+    adb_s shell 'locksettings set-disabled true; settings put secure lockscreen.disabled 1; wm dismiss-keyguard' >/dev/null 2>&1 ||
+        warn "could not turn off Android's lock screen"
+    # LineageOS starts its first-run wizard (org.lineageos.setupwizard) over everything until setup is marked done;
+    # it takes focus from the game, which then pauses and never renders. Nobody can click through it either.
+    if [[ "$(adb_s shell settings get secure user_setup_complete | tr -d '\r')" != 1 ]]; then
+        adb_s shell 'settings put secure user_setup_complete 1; settings put global device_provisioned 1; pm disable-user --user 0 org.lineageos.setupwizard' >/dev/null 2>&1 ||
+            warn "could not finish Android's first-run setup"
+        adb_s shell am start -W -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1 || true
+    fi
     # Unreal games get a texture pool sized to the GPU's memory (docs/windows_unreal_memory.md). Only Unreal games
     # are changed, and only they need root (sudo) for it.
     local -a memory_args=(--adb "$ADB" --serial "$SERIAL" --package "$package" --state-dir "$ROOT/build-waydroid-game/memory-policy")
@@ -964,5 +1008,7 @@ case "${1:-}" in
     setup) shift; cmd_setup "$@" ;;
     install) shift; cmd_install "$@" ;;
     play) shift; cmd_play "$@" ;;
+    start) shift; cmd_start "$@" ;;
+    stop) shift; cmd_stop "$@" ;;
     *) sed -n '2,/^set -euo/p' "$0" | sed '$d; s/^# \{0,1\}//'; exit 2 ;;
 esac
