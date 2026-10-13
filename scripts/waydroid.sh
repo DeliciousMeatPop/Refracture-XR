@@ -17,9 +17,9 @@
 #   --gpu /dev/dri/renderDN   The GPU Android draws with. Default: the one driving the desktop. Nvidia's driver
 #                             runs through Venus; AMD, Intel and nouveau through Waydroid's Mesa.
 #   --images DIR              Use system.img and vendor.img from DIR instead of downloading Android 16.
-#   --translator NAME         The ARM64 translator: ndk (default: the image's own ndk_translation), digitalis
-#                             (the Windows emulator's, built for this image's Android 16 QPR2 in
-#                             prebuilts/digitalis-qpr2: tools/translator/digitalis_build_qpr2.sh) or none.
+#   --translator NAME         The ARM64 translator: digitalis (default: the Windows emulator's, built for this
+#                             image's Android 16 QPR2 in prebuilts/digitalis-qpr2), ndk (the image's own
+#                             ndk_translation) or none.
 #   --no-translator           Same as --translator none (only x86_64 apps then run).
 #   --no-identity             Keep Waydroid's device identity instead of reporting a Quest 3.
 # play options:
@@ -517,7 +517,7 @@ trust_adb_key() {  # user, user's home
 }
 
 cmd_setup() {
-    local gpu="" images="" translator=ndk identity=1
+    local gpu="" images="" translator=digitalis identity=1
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --gpu) gpu="${2:?--gpu needs a render node}"; shift 2 ;;
@@ -581,7 +581,7 @@ cmd_setup() {
     if [[ $translator == digitalis ]]; then
         bundle="$digitalis/system"
         [[ -f "$bundle/lib64/libberberis_arm64.so" ]] ||
-            die "no Digitalis bundle for Android 16 QPR2 at $digitalis: build it in WSL with tools/translator/digitalis_build_qpr2.sh (docs/digitalis_waydroid.md)"
+            die "no Digitalis bundle for Android 16 QPR2 at $digitalis: build it in WSL with tools/translator/digitalis_build_qpr2.sh (docs/digitalis_waydroid.md), or use --translator ndk"
         (cd "$digitalis" && sha256sum --quiet -c SHA256SUMS) || die "Digitalis bundle failed its checksums"
         while IFS= read -r -d '' file; do
             case "$file" in ./bin/*) install -D -m 755 "$bundle/$file" "$OVERLAY/system/$file" ;;

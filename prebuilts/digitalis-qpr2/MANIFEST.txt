@@ -1,0 +1,7 @@
+Digitalis binary distribution (ARM64 -> x86_64 translator)
+build-date:        2026-10-08
+build-username:    digitalis-build
+target-product:    sdk_phone64_x86_64_digitalis
+binary_translation-sha: 9e7f4407
+digitalis-sha:     a6edb72
+artifact-count:    74

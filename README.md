@@ -46,7 +46,8 @@ docs/                 Setup guides and design notes
 ### Linux
 
 Requirements: Waydroid 1.6.3 or newer and a GPU (Nvidia's own driver works through Venus; AMD and Intel
-use Mesa). `setup` installs Android 16 and the GPU stack. [docs/linux_waydroid.md](docs/linux_waydroid.md)
+use Mesa). To build: CMake, Ninja, a C++20 compiler, the Android SDK and NDK, and a JDK. `setup` installs
+Android 16, the GPU stack and the Digitalis translator. [docs/linux_waydroid.md](docs/linux_waydroid.md)
 has the details.
 
 ```sh
@@ -58,8 +59,8 @@ scripts/waydroid.sh install path/to/game.apk
 scripts/waydroid.sh play com.example.game     # in a window on the PC; --headset for SteamVR/Monado/WiVRn
 ```
 
-The Linux path is new: Android 16 runs on an RTX 3080 through Venus, but no game has been played to
-the end yet.
+The Linux path is new. It's tested on Fedora 44 with an RTX 3080: North Star, Yeeps and Batman: Arkham
+Shadow run in the PC viewer. No Unreal game has been tested yet.
 
 ### Windows
 

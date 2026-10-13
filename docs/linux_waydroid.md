@@ -6,7 +6,7 @@ the same Android version as the Windows emulator, Android 16 (API 36), from
 [WayDroid-ATV](https://github.com/WayDroid-ATV/waydroid-builds)'s LineageOS 23.2 images.
 
 ```text
-Quest APK (ARM64, translated by the image's ndk_translation)
+Quest APK (ARM64, translated by Digitalis, as on Windows)
   -> Refract Android OpenXR runtime (in Waydroid)
   -> Android's Vulkan: Mesa Venus -> Unix socket -> virgl renderer on the host -> Nvidia's driver
        (Refract's GPU layer in the renderer shares the eye images, as on Windows)
@@ -18,13 +18,14 @@ Quest APK (ARM64, translated by the image's ndk_translation)
 
 > **Status:** tested on Fedora 44 with an RTX 3080. Android 16 boots, and it draws on the RTX 3080
 > through Venus: SurfaceFlinger reports ANGLE on Vulkan 1.3 on the RTX 3080. The Quest 3 identity is
-> active. Yeeps and Batman: Arkham Shadow run in the PC viewer with GPU sharing.
+> active. North Star, Yeeps and Batman: Arkham Shadow run in the PC viewer with GPU sharing, North
+> Star and Yeeps under Digitalis.
 
 ## The ARM64 translator
 
-The Windows emulator translates ARM64 games with Digitalis. Waydroid uses the image's own
-`ndk_translation` by default. `setup --translator digitalis` installs Digitalis instead, from a bundle
-built for this image's Android version.
+Waydroid translates ARM64 games with Digitalis, as the Windows emulator does, from the bundle in
+`prebuilts/digitalis-qpr2`, which is built for this image's Android version. `setup --translator ndk`
+uses the image's own `ndk_translation` instead.
 
 Digitalis' ARM64 bionic shares two structures with the host's (x86_64) bionic: `pthread_internal_t`
 and `bionic_tls`. It works only on the Android 16 release whose bionic layout it was built with:
@@ -37,8 +38,10 @@ and `bionic_tls`. It works only on the Android 16 release whose bionic layout it
   - a build fix.
 - **QPR2, LineageOS 23.2.** It needs `prebuilts/digitalis-qpr2`, built from the same tree without those
   commits by `tools/translator/digitalis_build_qpr2.sh` (in WSL, as root). The script builds and packs
-  the bundle, then puts the commits back and rebuilds, so the Windows workflow is unchanged.
-  [digitalis_waydroid.md](digitalis_waydroid.md) has the steps.
+  the bundle, then puts the commits back and rebuilds, so the Windows workflow is unchanged. Its
+  `libberberis_arm64.so` is the same file as the Windows one, with all of Refract's translator
+  patches. Only the ARM64 linker, `libc.so` and the proxy libraries differ.
+  [digitalis_waydroid.md](digitalis_waydroid.md) has the steps to rebuild it.
 
 With the wrong bundle, the ARM64 linker reads `bionic_tls` 8 bytes off and gets a null pointer. Every ARM64
 program, even `linker64 --list`, then crashes at start (fault address `0x2fa1`). `pthread_exit` shows the
@@ -46,8 +49,8 @@ shift: the emulator's x86_64 libc reads `0x98/0xa8/0xb0`, and LineageOS 23.2's r
 The bundle's `linker64` shows which layout it has: it loads `bionic_tls` from offset `0x2f8` (QPR0) or
 `0x300` (QPR2) of the thread structure.
 
-`setup` installs the two fixes below only for `ndk_translation`. With Digitalis, games get the same
-fixes as on Windows.
+With `--translator ndk`, `setup` also installs the two fixes below. With Digitalis, games get the
+same fixes as on Windows.
 
 `ndk_translation` has no bridge for `JNI_GetCreatedJavaVMs` in the guest `libandroid_runtime.so`.
 A call there aborts the app ("Bad 'JNI_GetCreatedJavaVMs' call"), and Meta's audio SDK
@@ -77,8 +80,8 @@ Only the known libraries (by SHA-256) are changed.
     installs it.
   - **AMD, Intel, or Nvidia on `nouveau`:** Android uses Waydroid's Mesa drivers.
 - adb (Fedora: `android-tools`, or the Android SDK's `platform-tools`).
-- To build: CMake, Ninja, a C++20 compiler, Vulkan and OpenXR headers, and for the Android packages
-  the Android SDK and NDK 27.3 plus a JDK.
+- To build: CMake, Ninja, a C++20 compiler, the Vulkan, OpenXR and SDL3 libraries, and for the Android
+  packages the Android SDK and NDK 27.3 plus a JDK (`JAVA_HOME`).
 
 `scripts/waydroid.sh check` reports which of these are missing. It changes nothing.
 
@@ -90,7 +93,10 @@ ANDROID_ABI=arm64-v8a android-runtime-apk/build_apk.sh  # runtime + com.oculus.s
 platform-sdk/build_apk.sh                               # Meta Platform SDK stand-in
 ```
 
-The APK scripts read the SDK from `ANDROID_HOME` (default `~/Android/Sdk`).
+`build_host.sh` takes the Vulkan, OpenXR and SDL3 headers from their dev packages (Fedora:
+`vulkan-headers openxr-devel SDL3-devel`). If they're not installed, it downloads the headers that
+match the installed libraries into `build-linux/_deps`. The APK scripts read the SDK from
+`ANDROID_HOME` (default `~/Android/Sdk`).
 
 ## Set up Waydroid (once)
 
@@ -116,8 +122,9 @@ scripts/waydroid.sh check
   - Adds two bind mounts to `/var/lib/waydroid/lxc/waydroid/config_nodes`: the render node, and the
     renderer's socket directory `/run/refract-venus` (seen as `/dev/venus`). `waydroid upgrade`
     rewrites that file, so run `setup` again after one.
-- **ARM64 translator:** uses the image's `ndk_translation`, and removes Digitalis from Waydroid's
-  overlay if an earlier setup put it there. See [The ARM64 translator](#the-arm64-translator).
+- **ARM64 translator:** installs Digitalis into Waydroid's overlay (after checking its checksums),
+  over the image's ARM64 libraries, and masks the image's `ndk_translation`. With `--translator ndk`
+  it removes them again. See [The ARM64 translator](#the-arm64-translator).
 - **Properties** in `/var/lib/waydroid/waydroid.cfg`:
   - the native bridge and the ABI lists (with `arm64-v8a`);
   - the Quest 3 identity that unmodified Quest APKs check for, as `scripts/device_identity.ps1`
@@ -137,9 +144,8 @@ scripts/waydroid.sh check
 
 The options:
 - `--gpu /dev/dri/renderDN` chooses the GPU. The default is the one driving the desktop.
-- `--translator ndk|digitalis|none` chooses the ARM64 translator. The default is `ndk`. `digitalis`
-  needs `prebuilts/digitalis-qpr2` (see [The ARM64 translator](#the-arm64-translator)).
-  `--no-translator` is the same as `none`.
+- `--translator digitalis|ndk|none` chooses the ARM64 translator. The default is `digitalis` (see
+  [The ARM64 translator](#the-arm64-translator)). `--no-translator` is the same as `none`.
 - `--no-identity` leaves out the Quest 3 identity.
 
 Waydroid freezes Android's container when Android's screen goes off, which happens when no Waydroid

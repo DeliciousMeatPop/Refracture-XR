@@ -1,9 +1,10 @@
 # Building Digitalis for Waydroid
 
-Waydroid translates ARM64 games with the image's own `ndk_translation` by default. This guide builds
-the Windows emulator's translator, Digitalis, for Waydroid's Android. `scripts/waydroid.sh setup
---translator digitalis` then installs it. [linux_waydroid.md](linux_waydroid.md#the-arm64-translator)
-explains why Waydroid needs its own build.
+Waydroid translates ARM64 games with the Windows emulator's translator, Digitalis, built for
+Waydroid's Android. The built bundle is in the repository (`prebuilts/digitalis-qpr2`), and
+`sudo scripts/waydroid.sh setup` installs it, so you need this guide only to rebuild it, for example
+after a change to Refract's translator patches.
+[linux_waydroid.md](linux_waydroid.md#the-arm64-translator) explains why Waydroid needs its own build.
 
 | Bundle | bionic layout | Runs on |
 |---|---|---|
@@ -55,11 +56,11 @@ take a few minutes.
 
 ## 2. Install it on Linux
 
-Mount the Windows drive (read-only is enough). From the Linux checkout, run:
+Mount the Windows drive (read-only is enough). From the Linux checkout, replace the bundle:
 
 ```sh
 tarball=/run/media/$USER/Acer/Users/mixid/Documents/digitalis-qpr2-prebuilts.tar.gz
-mkdir -p prebuilts/digitalis-qpr2
+find prebuilts/digitalis-qpr2 -mindepth 1 ! -name NOTICE -delete
 tar -xzf "$tarball" -C prebuilts/digitalis-qpr2 --strip-components=1
 (cd prebuilts/digitalis-qpr2 && sha256sum -c --quiet SHA256SUMS)
 python3 tools/translator/digitalis_bionic_layout.py prebuilts/digitalis-qpr2 --expect qpr2
@@ -71,12 +72,12 @@ with the layout commits; don't install that bundle on Waydroid.
 Then install it (this restarts Waydroid's container):
 
 ```sh
-sudo scripts/waydroid.sh setup --translator digitalis
+sudo scripts/waydroid.sh setup
 scripts/waydroid.sh check        # ARM64 translator: Digitalis
 ```
 
-`sudo scripts/waydroid.sh setup` (or `--translator ndk`) switches back to `ndk_translation`. It
-removes Digitalis' files from the overlay.
+Commit the new bundle (`NOTICE` stays). `sudo scripts/waydroid.sh setup --translator ndk` switches
+to `ndk_translation`. It removes Digitalis' files from the overlay.
 
 ## If ARM64 games crash at start
 
