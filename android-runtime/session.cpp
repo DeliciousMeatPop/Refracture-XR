@@ -216,6 +216,18 @@ bool frame_sync_enabled()
 #endif
 }
 
+// debug.refract.uncapped=1 (testing): xrWaitFrame never sleeps, so the game renders as fast as it can instead
+// of at the host display rate (at most 250 Hz).
+bool uncapped_enabled()
+{
+#if defined(__ANDROID__)
+    static const bool enabled = int_property("debug.refract.uncapped", 0, 0, 1) != 0;
+    return enabled;
+#else
+    return false;
+#endif
+}
+
 // The pose stream sequence each frame's views came from, by the frame's display time: xrLocateViews
 // records it on the game's main thread, xrEndFrame looks it up on its render thread. Frames sent to
 // the SteamVR host bridge carry it, so the bridge can show every frame a fixed number of display frames
@@ -3600,7 +3612,7 @@ XrResult XRAPI_CALL xrWaitFrame_impl(
     // catch-up frames after a slow render or a disconnected transport.
     const XrTime period = refract::protocol::display_period_or_default(pose_client().latest_pose_frame());
     XrTime now = monotonic_time_ns();
-    if (g_nextFrameStart == 0 || now - g_nextFrameStart >= period) {
+    if (g_nextFrameStart == 0 || now - g_nextFrameStart >= period || uncapped_enabled()) {
         g_nextFrameStart = now;
     }
     if (g_nextFrameStart > now) {

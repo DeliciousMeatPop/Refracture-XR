@@ -191,7 +191,9 @@ Closing the window or pressing Ctrl+C stops the game. F1 shows the performance o
 Windows: game and viewer frame rates, frame times with a graph, render size, CPU use and the game's
 busiest threads. Waydroid shares the PC's kernel, so its CPU line is the whole PC's. Logs are in `runs/<run>/`.
 
-`--no-unreal-policy` restores an Unreal game's own texture pool. Ownership and the Meta user ID come from `scripts/owned_games.txt` and
+`--no-unreal-policy` restores an Unreal game's own texture pool. `--uncapped` is for testing: the
+runtime stops pacing the game to the 250 Hz display rate (`debug.refract.uncapped`), so it renders as
+fast as it can. Ownership and the Meta user ID come from `scripts/owned_games.txt` and
 `scripts/platform_user_id.txt`, as on Windows, or from `--owned`. `--eye-size` sets the window's
 render size per eye.
 

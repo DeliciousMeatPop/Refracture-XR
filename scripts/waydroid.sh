@@ -32,6 +32,7 @@
 #   --runtime FILE.json       Headset only: the PC OpenXR runtime manifest (sets XR_RUNTIME_JSON).
 #   --run NAME                Log directory under runs/ (default: waydroid-<time>).
 #   --no-unreal-policy        Restore an Unreal game's own texture pool (as -UnrealMemoryPolicy Off on Windows).
+#   --uncapped                For testing: the game renders as fast as it can, not at the 250 Hz display rate.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -742,7 +743,7 @@ last_error() { grep -v '^[[:space:]]*$' "$SESSION_LOGS/$1.err" 2>/dev/null | tai
 cmd_play() {
     local package="$DEFAULT_PACKAGE"
     [[ $# -gt 0 && "$1" != -* ]] && { package="$1"; shift; }
-    local activity="" name="" owned=0 eye=1600 headset=0 scale=100 unreal_policy=1 run="waydroid-$(date +%Y%m%d-%H%M%S)"
+    local activity="" name="" owned=0 eye=1600 headset=0 scale=100 unreal_policy=1 uncapped=0 run="waydroid-$(date +%Y%m%d-%H%M%S)"
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --activity) activity="${2:?}"; shift 2 ;;
@@ -754,6 +755,7 @@ cmd_play() {
             --runtime) export XR_RUNTIME_JSON="${2:?}"; shift 2 ;;
             --run) run="${2:?}"; shift 2 ;;
             --no-unreal-policy) unreal_policy=0; shift ;;
+            --uncapped) uncapped=1; shift ;;
             *) die "unknown play option: $1" ;;
         esac
     done
@@ -809,6 +811,7 @@ cmd_play() {
         "debug.refract.video=''"  # Pixels or shared images: nothing on Linux decodes H.264.
         "debug.refract.platform.owned.$package=$owned"
         "debug.refract.runtime_name=Oculus"
+        "debug.refract.uncapped=$uncapped"
         "debug.refract.texture_mip_limit=$([[ "$package" == com.camouflaj.manta ]] && echo 1 || echo 0)"
     )
     if [[ $headset == 1 ]]; then
