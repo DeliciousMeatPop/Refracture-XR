@@ -1,6 +1,16 @@
 #include "stats_overlay.h"
 #if defined(_WIN32)
 #include <windows.h>
+#else
+#include "mono_font_files.h"
+#define STB_TRUETYPE_IMPLEMENTATION
+#define STBTT_STATIC
+#include "stb_truetype.h"
+
+#include <fstream>
+#include <iterator>
+#include <map>
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -11,15 +21,75 @@ constexpr float kCardOpacity = 0.78f;
 constexpr float kCardGrey = 18.0f;  // The card's colour, 0-255.
 }
 
+#if !defined(_WIN32)
+// The desktop's monospace font at one size, with each character rasterized the first time it is drawn. Every
+// character takes the width of a '0', so the numbers line up in columns.
+struct StatsOverlay::Font {
+    struct Glyph { int width = 0, height = 0, left = 0, top = 0; std::vector<uint8_t> coverage; };
+    std::vector<unsigned char> data;
+    stbtt_fontinfo info{};
+    float scale = 0;
+    int advance = 0, ascent = 0;
+    std::map<uint32_t, Glyph> glyphs;
+
+    bool load()
+    {
+        for (const std::string& path : mono_font_candidates()) {
+            std::ifstream file(path, std::ios::binary);
+            data.assign(std::istreambuf_iterator<char>(file), {});
+            const int offset = data.empty() ? -1 : stbtt_GetFontOffsetForIndex(data.data(), 0);
+            if (offset >= 0 && stbtt_InitFont(&info, data.data(), offset)) return true;
+        }
+        return false;
+    }
+    // Em size in pixels.
+    void set_size(float pixels)
+    {
+        scale = stbtt_ScaleForMappingEmToPixels(&info, pixels);
+        int ascender = 0, descender = 0, gap = 0, width = 0, bearing = 0;
+        stbtt_GetFontVMetrics(&info, &ascender, &descender, &gap);
+        stbtt_GetCodepointHMetrics(&info, '0', &width, &bearing);
+        advance = std::max(1, int(std::lround(width * scale)));
+        ascent = int(std::lround(ascender * scale));
+        glyphs.clear();
+    }
+    // The '0' advance as a fraction of the em.
+    float advance_em() const
+    {
+        int width = 0, bearing = 0;
+        stbtt_GetCodepointHMetrics(&info, '0', &width, &bearing);
+        return width * stbtt_ScaleForMappingEmToPixels(&info, 1.0f);
+    }
+    const Glyph& glyph(uint32_t codepoint)
+    {
+        auto found = glyphs.find(codepoint);
+        if (found != glyphs.end()) return found->second;
+        Glyph& glyph = glyphs[codepoint];
+        const int index = stbtt_FindGlyphIndex(&info, int(codepoint));
+        unsigned char* bitmap = stbtt_GetGlyphBitmap(&info, scale, scale, index ? index : stbtt_FindGlyphIndex(&info, '?'),
+            &glyph.width, &glyph.height, &glyph.left, &glyph.top);
+        if (bitmap) glyph.coverage.assign(bitmap, bitmap + size_t(glyph.width) * glyph.height);
+        stbtt_FreeBitmap(bitmap, nullptr);
+        return glyph;
+    }
+};
+#endif
+
+StatsOverlay::StatsOverlay() = default;
+
 StatsOverlay::~StatsOverlay()
 {
+#if defined(_WIN32)
     if (dc_) DeleteDC(static_cast<HDC>(dc_));
     if (bitmap_) DeleteObject(static_cast<HBITMAP>(bitmap_));
     if (font_) DeleteObject(static_cast<HFONT>(font_));
+#endif
 }
 
 bool StatsOverlay::prepare(uint32_t width, uint32_t height, uint32_t rows)
 {
+    const float pad = 0.06f * height;
+#if defined(_WIN32)
     BITMAPINFO info{};
     info.bmiHeader.biSize = sizeof(info.bmiHeader);
     info.bmiHeader.biWidth = static_cast<LONG>(width);
@@ -30,7 +100,6 @@ bool StatsOverlay::prepare(uint32_t width, uint32_t height, uint32_t rows)
     HDC dc = CreateCompatibleDC(nullptr);
     void* bits = nullptr;
     HBITMAP bitmap = dc ? CreateDIBSection(dc, &info, DIB_RGB_COLORS, &bits, nullptr, 0) : nullptr;
-    const float pad = 0.06f * height;
     const int fontHeight = static_cast<int>((height - 2.0f * pad) / rows * 0.74f);
     // Grey antialiasing (not ClearType): the red, green and blue channels then all hold the coverage.
     HFONT font = CreateFontW(-fontHeight, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS,
@@ -47,6 +116,15 @@ bool StatsOverlay::prepare(uint32_t width, uint32_t height, uint32_t rows)
     SetTextColor(dc, RGB(255, 255, 255));
     dc_ = dc; bitmap_ = bitmap; font_ = font;
     dib_ = static_cast<uint8_t*>(bits);
+#else
+    // The longest line has 50 columns; the em shrinks from a row's 74% if the font is wider than Consolas.
+    auto font = std::make_unique<Font>();
+    if (!font->load()) return false;
+    constexpr float kColumns = 50.0f;
+    font->set_size(std::min((height - 2.0f * pad) / rows * 0.74f, (width - 2.8f * pad) / kColumns / font->advance_em()));
+    font_ = std::move(font);
+    text_.assign(static_cast<size_t>(width) * height, 0);
+#endif
     width_ = width; height_ = height; rows_ = rows;
 
     // Rounded corners, antialiased.
@@ -66,17 +144,42 @@ bool StatsOverlay::prepare(uint32_t width, uint32_t height, uint32_t rows)
 
 void StatsOverlay::draw(const std::vector<Line>& lines)
 {
-    if (!dc_) return;
-    HDC dc = static_cast<HDC>(dc_);
-    std::fill(dib_, dib_ + static_cast<size_t>(width_) * height_ * 4, uint8_t(0));
+    if (!font_) return;
     const float pad = 0.06f * height_;
     const float rowHeight = (height_ - 2.0f * pad) / rows_;
     const size_t count = (std::min<size_t>)(lines.size(), rows_);
+#if defined(_WIN32)
+    HDC dc = static_cast<HDC>(dc_);
+    std::fill(dib_, dib_ + static_cast<size_t>(width_) * height_ * 4, uint8_t(0));
     for (size_t i = 0; i < count; ++i) {
         TextOutW(dc, static_cast<int>(1.4f * pad), static_cast<int>(pad + i * rowHeight),
                  lines[i].text.c_str(), static_cast<int>(lines[i].text.size()));
     }
     GdiFlush();
+    const auto coverage = [&](size_t index) { return dib_[index * 4 + 1] / 255.0f; };
+#else
+    std::fill(text_.begin(), text_.end(), uint8_t(0));
+    for (size_t i = 0; i < count; ++i) {
+        // The cell's top is where GDI starts a line; the baseline is the font's ascent below it.
+        const int baseline = static_cast<int>(pad + i * rowHeight) + font_->ascent;
+        int x = static_cast<int>(1.4f * pad);
+        for (wchar_t c : lines[i].text) {
+            const Font::Glyph& glyph = font_->glyph(static_cast<uint32_t>(c));
+            for (int gy = 0; gy < glyph.height; ++gy) {
+                const int y = baseline + glyph.top + gy;
+                if (y < 0 || y >= int(height_)) continue;
+                for (int gx = 0; gx < glyph.width; ++gx) {
+                    const int px = x + glyph.left + gx;
+                    if (px < 0 || px >= int(width_)) continue;
+                    uint8_t& out = text_[static_cast<size_t>(y) * width_ + px];
+                    out = static_cast<uint8_t>(std::min(255, out + glyph.coverage[static_cast<size_t>(gy) * glyph.width + gx]));
+                }
+            }
+            x += font_->advance;
+        }
+    }
+    const auto coverage = [&](size_t index) { return text_[index] / 255.0f; };
+#endif
 
     for (uint32_t y = 0; y < height_; ++y) {
         const size_t row = rowHeight > 0 ? static_cast<size_t>((std::max)(0.0f, (y - pad) / rowHeight)) : 0;
@@ -84,7 +187,7 @@ void StatsOverlay::draw(const std::vector<Line>& lines)
         const float red = float(color >> 16 & 0xff), green = float(color >> 8 & 0xff), blue = float(color & 0xff);
         for (uint32_t x = 0; x < width_; ++x) {
             const size_t index = static_cast<size_t>(y) * width_ + x;
-            const float text = dib_[index * 4 + 1] / 255.0f;
+            const float text = coverage(index);
             const float card = card_[index] * (1.0f - text);
             uint8_t* out = &pixels_[index * 4];
             out[0] = static_cast<uint8_t>(kCardGrey * card + red * text + 0.5f);
@@ -95,4 +198,3 @@ void StatsOverlay::draw(const std::vector<Line>& lines)
     }
 }
 }
-#endif

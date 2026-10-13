@@ -7,6 +7,7 @@
 #include "windows_gpu_receiver.h"
 #include "debug_frame_capture.h"
 #include "windows_gpu_frame.h"
+#include "android_stats.h"
 
 #include "gpu_transport.h"
 #include "image_transport.h"
@@ -50,7 +51,6 @@
 #include <d3d11_4.h>
 #include <dxgi1_2.h>
 #include <timeapi.h>
-#include "android_stats.h"
 #endif
 
 #include <openxr/openxr.h>
@@ -58,8 +58,14 @@
 
 #if defined(_WIN32)
 #else
+#include <cwchar>
 #include <dlfcn.h>
 #include <time.h>
+#endif
+
+#if !defined(_WIN32)
+// MSVC's bounds-checked swprintf, for the stats panel's lines.
+#define swprintf_s(buffer, ...) std::swprintf(buffer, sizeof(buffer) / sizeof(buffer[0]), __VA_ARGS__)
 #endif
 
 namespace refract::host {
@@ -578,9 +584,9 @@ public:
         }
 #if defined(_WIN32)
         timeBeginPeriod(1);  // The frame pickup waits a few milliseconds; default timers overshoot by up to 15.6 ms.
+#endif
         start_android_stats();
         if (const char* shown = std::getenv("REFRACT_VR_STATS"); shown && std::strcmp(shown, "1") == 0) toggle_stats();
-#endif
         std::string applicationName = gameName + " \xe2\x80\x93 Refract";
         size_t nameLength = (std::min)(applicationName.size(), size_t(XR_MAX_APPLICATION_NAME_SIZE - 1));
         while (nameLength < applicationName.size() && nameLength &&
@@ -919,6 +925,8 @@ public:
                     layerCount = 0;
                 }
             }
+            XrCompositionLayerQuad statsQuad{XR_TYPE_COMPOSITION_LAYER_QUAD};
+            if (renderer_ && place_stats_panel(statsQuad)) layers[layerCount++] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&statsQuad);
 #endif
 
             XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
@@ -1223,7 +1231,6 @@ public:
         }
     }
 
-#if defined(_WIN32)
     // The headset's performance panel: Y + B held for a second, F1 in the mirror window, or
     // REFRACT_VR_STATS=1 from the start. Head-locked, up and to the left of the view centre.
     void toggle_stats()
@@ -1255,6 +1262,7 @@ public:
         androidStats_->start();
     }
 
+#if defined(_WIN32)
     bool create_stats_swapchain()
     {
         constexpr uint32_t kWidth = 1200, kHeight = 620, kRows = 10;
@@ -1286,6 +1294,38 @@ public:
         return enumerateSwapchainImages_(statsSwapchain_, count, &count,
             reinterpret_cast<XrSwapchainImageBaseHeader*>(statsImages_.data())) == XR_SUCCESS;
     }
+#else
+    bool create_stats_swapchain()
+    {
+        constexpr uint32_t kWidth = 1200, kHeight = 620, kRows = 10;
+        if (!statsOverlay_.prepare(kWidth, kHeight, kRows)) return false;
+        uint32_t count = 0;
+        if (enumerateSwapchainFormats_(session_, 0, &count, nullptr) != XR_SUCCESS || !count) return false;
+        std::vector<int64_t> formats(count);
+        if (enumerateSwapchainFormats_(session_, count, &count, formats.data()) != XR_SUCCESS) return false;
+        // The panel's bytes are display (sRGB) values.
+        int64_t chosen = 0;
+        for (int64_t preferred : {VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM}) {
+            if (!chosen && std::find(formats.begin(), formats.end(), preferred) != formats.end()) chosen = preferred;
+        }
+        if (!chosen) return false;
+        statsSwapRedBlue_ = chosen == VK_FORMAT_B8G8R8A8_SRGB || chosen == VK_FORMAT_B8G8R8A8_UNORM;
+        XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+        info.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT;
+        info.format = chosen;
+        info.sampleCount = 1;
+        info.width = kWidth;
+        info.height = kHeight;
+        info.faceCount = 1;
+        info.arraySize = 1;
+        info.mipCount = 1;
+        if (createSwapchain_(session_, &info, &statsSwapchain_) != XR_SUCCESS) return false;
+        if (enumerateSwapchainImages_(statsSwapchain_, 0, &count, nullptr) != XR_SUCCESS || !count) return false;
+        statsImages_.assign(count, {XR_TYPE_SWAPCHAIN_IMAGE_VULKAN2_KHR});
+        return enumerateSwapchainImages_(statsSwapchain_, count, &count,
+            reinterpret_cast<XrSwapchainImageBaseHeader*>(statsImages_.data())) == XR_SUCCESS;
+    }
+#endif
 
     // Recomputes the numbers twice a second and fills the quad that shows them. False: nothing to show.
     bool place_stats_panel(XrCompositionLayerQuad& quad)
@@ -1322,6 +1362,7 @@ public:
         return true;
     }
 
+#if defined(_WIN32)
     void upload_stats_panel()
     {
         uint32_t index = 0;
@@ -1341,6 +1382,28 @@ public:
         XrSwapchainImageReleaseInfo release{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
         if (releaseSwapchainImage_(statsSwapchain_, &release) == XR_SUCCESS) statsUploaded_ = true;
     }
+#else
+    void upload_stats_panel()
+    {
+        uint32_t index = 0;
+        XrSwapchainImageAcquireInfo acquire{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+        if (acquireSwapchainImage_(statsSwapchain_, &acquire, &index) != XR_SUCCESS || index >= statsImages_.size()) return;
+        XrSwapchainImageWaitInfo wait{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+        wait.timeout = XR_INFINITE_DURATION;
+        bool copied = false;
+        if (waitSwapchainImage_(statsSwapchain_, &wait) == XR_SUCCESS) {
+            const uint8_t* pixels = statsOverlay_.pixels();
+            if (statsSwapRedBlue_) {
+                statsBgra_.assign(pixels, pixels + static_cast<size_t>(statsOverlay_.width()) * statsOverlay_.height() * 4);
+                for (size_t i = 0; i < statsBgra_.size(); i += 4) std::swap(statsBgra_[i], statsBgra_[i + 2]);
+                pixels = statsBgra_.data();
+            }
+            copied = renderer_->upload(statsImages_[index].image, pixels, statsOverlay_.width(), statsOverlay_.height(), 1);
+        }
+        XrSwapchainImageReleaseInfo release{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+        if (releaseSwapchainImage_(statsSwapchain_, &release) == XR_SUCCESS && copied) statsUploaded_ = true;
+    }
+#endif
 
     std::vector<StatsOverlay::Line> stats_lines(uint64_t now)
     {
@@ -1421,7 +1484,11 @@ public:
             swprintf_s(text, L"Pipeline %4.1f ms pose to image  p95 %4.1f", turnaroundMs, turnaroundP95);
             add(kText);
         }
+        #if defined(_WIN32)
         swprintf_s(text, L"SteamVR  wait %3.1f  bridge %3.1f ms  missed %2.0f/s", waitMs, workMs, missedRate);
+#else
+        swprintf_s(text, L"Runtime  wait %3.1f  bridge %3.1f ms  missed %2.0f/s", waitMs, workMs, missedRate);
+#endif
         add(missedRate <= 0.5 ? kText : kWarn);
         const AndroidSnapshot android = androidStats_ ? androidStats_->snapshot() : AndroidSnapshot{};
         if (android.valid) {
@@ -1430,7 +1497,8 @@ public:
             std::wstring threads = L"Threads ";
             for (size_t i = 0; i < (std::min<size_t>)(2, android.threads.size()); ++i) {
                 wchar_t item[64];
-                swprintf_s(item, L" %.15hs %.0f%%", android.threads[i].name.c_str(), android.threads[i].percent);
+                const std::string& name = android.threads[i].name;
+                swprintf_s(item, L" %.15ls %.0f%%", std::wstring(name.begin(), name.end()).c_str(), android.threads[i].percent);
                 threads += item;
             }
             const bool pegged = !android.threads.empty() && android.threads[0].percent >= 90;
@@ -1440,8 +1508,119 @@ public:
         add(kDim);
         return lines;
     }
-#endif
 
+    // Finds the published head pose a newly shown image was rendered with (the runtime's eyes are that
+    // pose +/- half the IPD, so their midpoint is exact) and measures how long after that pose's display
+    // time the image is shown: the delay Refract's pipeline adds on top of the runtime's own. Diagnostic
+    // only. Frames rendered while the head is still match several poses and are skipped.
+    void measure_pose_latency(const refract::protocol::ImageProjection& projection, uint64_t imageSequence, XrTime displayTime)
+    {
+        if (imageSequence == UINT64_MAX || imageSequence == lastLatencyImage_) return;
+        lastLatencyImage_ = imageSequence;
+        const auto& l = projection.views[0].pose;
+        const auto& r = projection.views[1].pose;
+        const float x = (l.x + r.x) * 0.5f, y = (l.y + r.y) * 0.5f, z = (l.z + r.z) * 0.5f;
+        auto distance = [&](const refract::protocol::Pose& p) {
+            const float dot = std::fabs(p.qx * l.qx + p.qy * l.qy + p.qz * l.qz + p.qw * l.qw);
+            return std::sqrt((p.x - x) * (p.x - x) + (p.y - y) * (p.y - y) + (p.z - z) * (p.z - z)) +
+                   0.1f * std::sqrt((std::max)(0.0f, 1.0f - dot * dot));  // 0.1 m per radian (~1.7 mm/degree).
+        };
+        const size_t count = (std::min<size_t>)(publishedPoseCount_, publishedPoses_.size());
+        float best = 1e9f, second = 1e9f;
+        XrTime bestTime = 0;
+        for (size_t i = 0; i < count; ++i) {
+            const float d = distance(publishedPoses_[i].hmd);
+            if (d < best) { second = best; best = d; bestTime = publishedPoses_[i].displayTime; }
+            else if (d < second) { second = d; }
+        }
+        if (best > 2e-5f || second < 1e-4f || displayTime < bestTime) return;
+        latencySamples_.push_back(displayTime - bestTime);
+        if (latencySamples_.size() < 60) return;
+        std::sort(latencySamples_.begin(), latencySamples_.end());
+        const XrDuration median = latencySamples_[latencySamples_.size() / 2];
+        const XrDuration p90 = latencySamples_[latencySamples_.size() * 9 / 10];
+        latencySamples_.clear();
+        latencyMedianMs_ = median / 1e6;
+        latencyP90Ms_ = p90 / 1e6;
+        std::fprintf(stderr, "Refract Latency: rendered pose shown %.1f ms after its frame's display time (p90 %.1f ms)\n",
+            median / 1e6, p90 / 1e6);
+    }
+
+    // Floats the card in front of the user at eye level. It stays put while they look around it
+    // and glides back in front once they turn well away, like a system loading panel.
+    bool place_loading_card(XrTime displayTime, XrCompositionLayerQuad& quad)
+    {
+        constexpr float kDistance = 1.8f, kWidth = 1.2f;
+        constexpr float kFollowAngle = 0.55f, kSettledAngle = 0.02f;  // Radians.
+        constexpr float kTwoPi = 6.28318531f;
+        constexpr XrSpaceLocationFlags kValid = XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XR_SPACE_LOCATION_POSITION_VALID_BIT;
+        XrSpaceLocation head{XR_TYPE_SPACE_LOCATION};
+        if (locateSpace_(viewSpace_, localSpace_, displayTime, &head) == XR_SUCCESS && (head.locationFlags & kValid) == kValid) {
+            const auto& q = head.pose.orientation;
+            const float forwardX = -2.0f * (q.x * q.z + q.w * q.y);
+            const float forwardZ = -(1.0f - 2.0f * (q.x * q.x + q.y * q.y));
+            const bool level = forwardX * forwardX + forwardZ * forwardZ > 0.04f;  // Not looking straight up or down.
+            const float yaw = level ? std::atan2(-forwardX, -forwardZ) : loadingYaw_;
+            const float dt = loadingAnchored_ ? std::clamp(static_cast<float>(displayTime - loadingTime_) * 1e-9f, 0.0f, 0.1f) : 0.0f;
+            loadingTime_ = displayTime;
+            if (!loadingAnchored_) {
+                loadingAnchored_ = level;
+                loadingFollowing_ = false;
+                loadingYaw_ = yaw;
+                loadingHead_ = head.pose.position;
+            }
+            const float turn = std::remainder(yaw - loadingYaw_, kTwoPi);
+            if (std::fabs(turn) > kFollowAngle) loadingFollowing_ = true;
+            if (loadingFollowing_) {
+                loadingYaw_ += turn * (1.0f - std::exp(-4.0f * dt));
+                if (std::fabs(turn) < kSettledAngle) loadingFollowing_ = false;
+            }
+            const float glide = 1.0f - std::exp(-3.0f * dt);
+            loadingHead_.x += (head.pose.position.x - loadingHead_.x) * glide;
+            loadingHead_.y += (head.pose.position.y - loadingHead_.y) * glide;
+            loadingHead_.z += (head.pose.position.z - loadingHead_.z) * glide;
+        }
+        if (!loadingAnchored_) return false;
+
+        quad = {XR_TYPE_COMPOSITION_LAYER_QUAD};
+        quad.space = localSpace_;
+        quad.eyeVisibility = XR_EYE_VISIBILITY_BOTH;
+        quad.pose.position = {loadingHead_.x - std::sin(loadingYaw_) * kDistance, loadingHead_.y,
+                              loadingHead_.z - std::cos(loadingYaw_) * kDistance};
+        quad.pose.orientation = {0.0f, std::sin(loadingYaw_ * 0.5f), 0.0f, std::cos(loadingYaw_ * 0.5f)};
+        quad.size = {kWidth, kWidth * loading_.height() / loading_.width()};
+        quad.subImage.swapchain = projectionSwapchain_;
+        quad.subImage.imageArrayIndex = 0;
+        quad.subImage.imageRect = {{0, 0}, {static_cast<int32_t>(loading_.width()), static_cast<int32_t>(loading_.height())}};
+        return true;
+    }
+
+#if !defined(_WIN32)
+    // Until the game's first frame arrives, slice 0 of the projection image holds the loading card instead of a stereo
+    // image. The image is already acquired and waited for.
+    bool draw_loading_card(VkImage image, uint32_t imageIndex)
+    {
+        const auto now = std::chrono::steady_clock::now();
+        if (!loadingActive_) {
+            loadingActive_ = true;
+            loadingStart_ = now;
+            loadingAnchored_ = false;
+        }
+        if (!loading_.prepared()) {
+            const uint32_t width = (std::min)(1280u, projectionWidth_);
+            loading_.prepare(width, (std::min)(width * 5 / 8, projectionHeight_));
+        }
+        loading_.animate(std::chrono::duration<double>(now - loadingStart_).count());
+        // The card's neutral grey takes the same bytes in RGBA and BGRA images.
+        const bool copied = renderer_->upload(image, loading_.pixels(), loading_.width(), loading_.height(), 1);
+        // The image no longer holds an Android frame, so the next one must upload again.
+        uploadedAndroidSequenceByImage_[imageIndex] = UINT64_MAX;
+        uploadedProjectionByImage_[imageIndex] = {};
+        uploadedExtentByImage_[imageIndex] = {static_cast<int32_t>(projectionWidth_), static_cast<int32_t>(projectionHeight_)};
+        return copied;
+    }
+
+#endif
     bool drives_frame_loop() const { return sessionRunning_ && useFrameLoop_; }
 
 private:
@@ -2048,43 +2227,6 @@ private:
         return true;
     }
 
-    // Finds the published head pose a newly shown image was rendered with (the runtime's eyes are that
-    // pose +/- half the IPD, so their midpoint is exact) and measures how long after that pose's display
-    // time the image is shown: the delay Refract's pipeline adds on top of the runtime's own. Diagnostic
-    // only. Frames rendered while the head is still match several poses and are skipped.
-    void measure_pose_latency(const refract::protocol::ImageProjection& projection, uint64_t imageSequence, XrTime displayTime)
-    {
-        if (imageSequence == UINT64_MAX || imageSequence == lastLatencyImage_) return;
-        lastLatencyImage_ = imageSequence;
-        const auto& l = projection.views[0].pose;
-        const auto& r = projection.views[1].pose;
-        const float x = (l.x + r.x) * 0.5f, y = (l.y + r.y) * 0.5f, z = (l.z + r.z) * 0.5f;
-        auto distance = [&](const refract::protocol::Pose& p) {
-            const float dot = std::fabs(p.qx * l.qx + p.qy * l.qy + p.qz * l.qz + p.qw * l.qw);
-            return std::sqrt((p.x - x) * (p.x - x) + (p.y - y) * (p.y - y) + (p.z - z) * (p.z - z)) +
-                   0.1f * std::sqrt((std::max)(0.0f, 1.0f - dot * dot));  // 0.1 m per radian (~1.7 mm/degree).
-        };
-        const size_t count = (std::min<size_t>)(publishedPoseCount_, publishedPoses_.size());
-        float best = 1e9f, second = 1e9f;
-        XrTime bestTime = 0;
-        for (size_t i = 0; i < count; ++i) {
-            const float d = distance(publishedPoses_[i].hmd);
-            if (d < best) { second = best; best = d; bestTime = publishedPoses_[i].displayTime; }
-            else if (d < second) { second = d; }
-        }
-        if (best > 2e-5f || second < 1e-4f || displayTime < bestTime) return;
-        latencySamples_.push_back(displayTime - bestTime);
-        if (latencySamples_.size() < 60) return;
-        std::sort(latencySamples_.begin(), latencySamples_.end());
-        const XrDuration median = latencySamples_[latencySamples_.size() / 2];
-        const XrDuration p90 = latencySamples_[latencySamples_.size() * 9 / 10];
-        latencySamples_.clear();
-        latencyMedianMs_ = median / 1e6;
-        latencyP90Ms_ = p90 / 1e6;
-        std::fprintf(stderr, "Refract Latency: rendered pose shown %.1f ms after its frame's display time (p90 %.1f ms)\n",
-            median / 1e6, p90 / 1e6);
-    }
-
     void fill_projection_texture(ID3D11Texture2D* texture, uint32_t imageIndex)
     {
         const auto lockStart = std::chrono::steady_clock::now();
@@ -2137,55 +2279,6 @@ private:
         uploadedExtentByImage_[imageIndex] = {static_cast<int32_t>(projectionWidth_), static_cast<int32_t>(projectionHeight_)};
         mirror_.present(d3dContext_.get(), texture, loading_.width(), loading_.height(),
             static_cast<DXGI_FORMAT>(projectionFormat_), kLoadingMirrorSequence | ++loadingMirrorFrame_);
-    }
-
-    // Floats the card in front of the user at eye level. It stays put while they look around it
-    // and glides back in front once they turn well away, like a system loading panel.
-    bool place_loading_card(XrTime displayTime, XrCompositionLayerQuad& quad)
-    {
-        constexpr float kDistance = 1.8f, kWidth = 1.2f;
-        constexpr float kFollowAngle = 0.55f, kSettledAngle = 0.02f;  // Radians.
-        constexpr float kTwoPi = 6.28318531f;
-        constexpr XrSpaceLocationFlags kValid = XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XR_SPACE_LOCATION_POSITION_VALID_BIT;
-        XrSpaceLocation head{XR_TYPE_SPACE_LOCATION};
-        if (locateSpace_(viewSpace_, localSpace_, displayTime, &head) == XR_SUCCESS && (head.locationFlags & kValid) == kValid) {
-            const auto& q = head.pose.orientation;
-            const float forwardX = -2.0f * (q.x * q.z + q.w * q.y);
-            const float forwardZ = -(1.0f - 2.0f * (q.x * q.x + q.y * q.y));
-            const bool level = forwardX * forwardX + forwardZ * forwardZ > 0.04f;  // Not looking straight up or down.
-            const float yaw = level ? std::atan2(-forwardX, -forwardZ) : loadingYaw_;
-            const float dt = loadingAnchored_ ? std::clamp(static_cast<float>(displayTime - loadingTime_) * 1e-9f, 0.0f, 0.1f) : 0.0f;
-            loadingTime_ = displayTime;
-            if (!loadingAnchored_) {
-                loadingAnchored_ = level;
-                loadingFollowing_ = false;
-                loadingYaw_ = yaw;
-                loadingHead_ = head.pose.position;
-            }
-            const float turn = std::remainder(yaw - loadingYaw_, kTwoPi);
-            if (std::fabs(turn) > kFollowAngle) loadingFollowing_ = true;
-            if (loadingFollowing_) {
-                loadingYaw_ += turn * (1.0f - std::exp(-4.0f * dt));
-                if (std::fabs(turn) < kSettledAngle) loadingFollowing_ = false;
-            }
-            const float glide = 1.0f - std::exp(-3.0f * dt);
-            loadingHead_.x += (head.pose.position.x - loadingHead_.x) * glide;
-            loadingHead_.y += (head.pose.position.y - loadingHead_.y) * glide;
-            loadingHead_.z += (head.pose.position.z - loadingHead_.z) * glide;
-        }
-        if (!loadingAnchored_) return false;
-
-        quad = {XR_TYPE_COMPOSITION_LAYER_QUAD};
-        quad.space = localSpace_;
-        quad.eyeVisibility = XR_EYE_VISIBILITY_BOTH;
-        quad.pose.position = {loadingHead_.x - std::sin(loadingYaw_) * kDistance, loadingHead_.y,
-                              loadingHead_.z - std::cos(loadingYaw_) * kDistance};
-        quad.pose.orientation = {0.0f, std::sin(loadingYaw_ * 0.5f), 0.0f, std::cos(loadingYaw_ * 0.5f)};
-        quad.size = {kWidth, kWidth * loading_.height() / loading_.width()};
-        quad.subImage.swapchain = projectionSwapchain_;
-        quad.subImage.imageArrayIndex = 0;
-        quad.subImage.imageRect = {{0, 0}, {static_cast<int32_t>(loading_.width()), static_cast<int32_t>(loading_.height())}};
-        return true;
     }
 
     bool upload_android_frame(ID3D11Texture2D* texture, uint32_t imageIndex)
@@ -2610,18 +2703,30 @@ private:
             return false;
         XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
         waitInfo.timeout = XR_INFINITE_DURATION;
-        bool uploaded = false, panelsReady = true;
+        bool uploaded = false, panelsReady = true, loading = false;
         if (waitSwapchainImage_(projectionSwapchain_, &waitInfo) == XR_SUCCESS) {
             const VkImage image = projectionImages_[imageIndex].image;
             uploaded = upload_android_frame(image, imageIndex);
+            if (uploaded) loadingActive_ = false;
+            else loading = draw_loading_card(image, imageIndex);
             quadCount = uploaded ? uploadedProjectionByImage_[imageIndex].quad_count() : 0;
             for (uint32_t i = 0; i < quadCount && panelsReady; ++i)
                 panelsReady = fill_panel(i, image, i, uploadedExtentByImage_[imageIndex]);
         }
         XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-        if (releaseSwapchainImage_(projectionSwapchain_, &releaseInfo) != XR_SUCCESS || !uploaded) return false;
+        if (releaseSwapchainImage_(projectionSwapchain_, &releaseInfo) != XR_SUCCESS) return false;
+        if (loading) {
+            quadCount = place_loading_card(displayTime, quadLayers[0]) ? 1 : 0;
+            return quadCount != 0;
+        }
+        if (!uploaded) return false;
 
         const auto& composition = uploadedProjectionByImage_[imageIndex];
+        if (uploadedAndroidSequenceByImage_[imageIndex] != statsShownSequence_) {
+            statsShownSequence_ = uploadedAndroidSequenceByImage_[imageIndex];
+            ++statsNewFrames_;
+        }
+        if (composition.view_count == 2) measure_pose_latency(composition, uploadedAndroidSequenceByImage_[imageIndex], displayTime);
         if (quadCount) {
             if (!panelsReady) return false;
             for (uint32_t i = 0; i < quadCount; ++i) {
@@ -3002,9 +3107,7 @@ private:
 
         const auto inputNow = static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
-#if defined(_WIN32)
         if (statsShortcut_.toggled(frame.controllers, inputNow)) toggle_stats();
-#endif
         menuShortcut_.apply(frame.controllers, inputNow);
 #if defined(_WIN32)
         if (mirror_.menu_key_held()) frame.controllers[0].buttons |= refract::protocol::MenuClick;
@@ -3106,14 +3209,23 @@ private:
     std::vector<double> statsWork_, statsEndFrame_;
     double latencyMedianMs_ = -1, latencyP90Ms_ = -1;
     XrDuration displayPeriod_ = 0;
-#if defined(_WIN32)
     StatsOverlay statsOverlay_;
     XrSwapchain statsSwapchain_ = XR_NULL_HANDLE;
+#if defined(_WIN32)
     std::vector<XrSwapchainImageD3D11KHR> statsImages_;
+#else
+    std::vector<XrSwapchainImageVulkan2KHR> statsImages_;
+#endif
     std::vector<uint8_t> statsBgra_;
     bool statsSwapRedBlue_ = false, statsUploaded_ = false, statsFailed_ = false;
     std::unique_ptr<AndroidStats> androidStats_;
-#endif
+    // The loading card, shown until the game's first frame arrives.
+    LoadingScreen loading_;
+    std::chrono::steady_clock::time_point loadingStart_{};
+    XrTime loadingTime_ = 0;
+    XrVector3f loadingHead_{};
+    float loadingYaw_ = 0.0f;
+    bool loadingActive_ = false, loadingAnchored_ = false, loadingFollowing_ = false;
     uint64_t publishedFrames_ = 0, sentFrames_ = 0;  // Frame loop poses located / sent (frameMutex_).
     std::array<std::pair<uint64_t, uint64_t>, 256> poseFrameBySequence_{};  // Stream sequence -> display frame (frameMutex_).
     // Frame pacing. pacingMutex_ guards the current frame, its start, when each frame's pose went out,
@@ -3226,15 +3338,9 @@ private:
     uint32_t projectionHeight_ = refract::protocol::kTransportEyeDimension;
     // Mirror sequences for loading frames, kept apart from Android frame sequences.
     static constexpr uint64_t kLoadingMirrorSequence = 1ull << 62;
-    LoadingScreen loading_;
     std::vector<uint8_t> loadingByImage_;      // The image holds the loading card...
     std::vector<uint8_t> loadingCardByImage_;  // ...all of it, at full brightness.
-    std::chrono::steady_clock::time_point loadingStart_{};
     uint64_t loadingMirrorFrame_ = 0;
-    XrTime loadingTime_ = 0;
-    XrVector3f loadingHead_{};
-    float loadingYaw_ = 0.0f;
-    bool loadingActive_ = false, loadingAnchored_ = false, loadingFollowing_ = false;
     bool reportedProjectionSubmit_ = false;
     bool reportedAndroidImageSubmit_ = false;
 #else

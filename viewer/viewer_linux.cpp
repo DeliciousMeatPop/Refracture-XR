@@ -16,6 +16,7 @@
 #include "android_stats.h"
 #include "image_transport.h"
 #include "loading_screen.h"
+#include "mono_font_files.h"
 #include "linux_gpu_share.h"
 #include "windows_gpu_frame.h"
 
@@ -576,18 +577,7 @@ public:
 
     bool load()
     {
-        std::vector<std::string> paths;
-        if (FILE* pipe = popen("fc-match -f '%{file}' monospace 2>/dev/null", "r")) {
-            char path[4096]{};
-            if (std::fgets(path, sizeof(path), pipe)) paths.emplace_back(path);
-            pclose(pipe);
-        }
-        for (const char* path : {"/usr/share/fonts/google-noto/NotoSansMono-Regular.ttf",
-                                 "/usr/share/fonts/dejavu-sans-mono-fonts/DejaVuSansMono.ttf",
-                                 "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
-                                 "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Regular.ttf",
-                                 "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf"})
-            paths.emplace_back(path);
+        const std::vector<std::string> paths = mono_font_candidates();
         for (const std::string& path : paths) {
             std::ifstream file(path, std::ios::binary);
             data_.assign(std::istreambuf_iterator<char>(file), {});

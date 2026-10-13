@@ -209,6 +209,8 @@ its runtime inside the Flatpak sandbox, so a host bridge outside it may not reac
 install, Monado or WiVRn avoids that.
 
 The PC viewer shows the Refract loading card (the logo above a sliding bar) until the game's first
-frame arrives, as on Windows.
+frame arrives, as on Windows. With `--headset` the card floats in front of you instead, and holding
+Y + B for a second shows the performance panel (or start with `--vr-stats`): game and headset frame
+rates, delay, pacing, and Android's CPU use and busiest threads.
 
-Not on Linux yet: the in-headset loading card and stats panel, and Steam Link.
+Not on Linux yet: Steam Link.

@@ -34,6 +34,7 @@
 #   --headset                 Play on a headset through the PC OpenXR runtime (the host bridge) instead.
 #   --render-scale PERCENT    Headset only: scales the headset's recommended eye size (25-200, default 100).
 #   --runtime FILE.json       Headset only: the PC OpenXR runtime manifest (sets XR_RUNTIME_JSON).
+#   --vr-stats                Headset only: show the performance panel from the start (else hold Y + B for a second).
 #   --run NAME                Log directory under runs/ (default: waydroid-<time>).
 #   --no-unreal-policy        Restore an Unreal game's own texture pool (as -UnrealMemoryPolicy Off on Windows).
 #   --uncapped                For testing: the game renders as fast as it can, not at the 250 Hz display rate.
@@ -774,7 +775,7 @@ last_error() { grep -v '^[[:space:]]*$' "$SESSION_LOGS/$1.err" 2>/dev/null | tai
 cmd_play() {
     local package="$DEFAULT_PACKAGE"
     [[ $# -gt 0 && "$1" != -* ]] && { package="$1"; shift; }
-    local user_id_arg="" activity="" name="" owned=0 eye=1600 headset=0 scale=100 unreal_policy=1 uncapped=0 run="waydroid-$(date +%Y%m%d-%H%M%S)"
+    local user_id_arg="" activity="" name="" owned=0 eye=1600 headset=0 vr_stats=0 scale=100 unreal_policy=1 uncapped=0 run="waydroid-$(date +%Y%m%d-%H%M%S)"
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --activity) activity="${2:?}"; shift 2 ;;
@@ -785,6 +786,7 @@ cmd_play() {
             --headset) headset=1; shift ;;
             --render-scale) scale="${2:?}"; shift 2 ;;
             --runtime) export XR_RUNTIME_JSON="${2:?}"; shift 2 ;;
+            --vr-stats) vr_stats=1; shift ;;
             --run) run="${2:?}"; shift 2 ;;
             --no-unreal-policy) unreal_policy=0; shift ;;
             --uncapped) uncapped=1; shift ;;
@@ -900,7 +902,9 @@ cmd_play() {
 
     if [[ $headset == 1 ]]; then
         say "Starting the host bridge (log: runs/$run/host.log)"
-        REFRACT_RENDER_SCALE="$scale" start_logged host "$HOST_BRIDGE" --serve-openxr "${BRIDGE_PORTS[0]}" 0 "$name"
+        # REFRACT_ADB/SERIAL/PACKAGE: Android CPU and the game's busiest threads in the headset's performance panel.
+        REFRACT_RENDER_SCALE="$scale" REFRACT_VR_STATS="$vr_stats" REFRACT_ADB="$ADB" REFRACT_SERIAL="$SERIAL" REFRACT_PACKAGE="$package" \
+            start_logged host "$HOST_BRIDGE" --serve-openxr "${BRIDGE_PORTS[0]}" 0 "$name"
         SESSION_PIDS+=("$SESSION_PID")
         SESSION_MAIN_PID=$SESSION_PID
         # Start the game only once the bridge has an OpenXR session (it then prints the tracking origin).
