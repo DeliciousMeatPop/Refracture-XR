@@ -66,6 +66,7 @@ add_executable(refract_native
   src/emulate.cpp
   src/elf_loader.cpp
   src/thunks.cpp
+  src/cpu.cpp
   src/cpu_dynarmic.cpp
   src/vulkan_hle.cpp
   src/vk_texcomp.cpp
@@ -84,6 +85,22 @@ target_include_directories(refract_native PRIVATE src
   "${REFRACT_EXTERNAL_SRC}/Vulkan-Headers/include"
   "${REFRACT_JDK}/include" "${REFRACT_JDK}/include/win32")
 target_link_libraries(refract_native PRIVATE dynarmic astcdec winmm bcrypt dbghelp ws2_32 ole32)
+
+# Digitalis CPU backend (REFRACT_CPU=digitalis): a clang-cl static library built by
+# digitalis/build.cmd (build.cmd runs it first when the LLVM toolchain is present).
+set(REFRACT_LLVM "${CMAKE_CURRENT_SOURCE_DIR}/../../external/llvm" CACHE PATH "LLVM for Windows (clang-cl)")
+if(EXISTS "${REFRACT_LLVM}/bin/clang-cl.exe")
+  set(digitalis_default ON)
+else()
+  set(digitalis_default OFF)
+endif()
+option(REFRACT_DIGITALIS "Link the Digitalis CPU backend" ${digitalis_default})
+if(REFRACT_DIGITALIS)
+  file(GLOB clang_rt_builtins "${REFRACT_LLVM}/lib/clang/*/lib/windows/clang_rt.builtins-x86_64.lib")
+  target_link_libraries(refract_native PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../build-native-digitalis/refract_digitalis.lib" ${clang_rt_builtins})
+  target_compile_definitions(refract_native PRIVATE RN_HAVE_DIGITALIS)
+endif()
 if(MSVC)
   target_compile_options(refract_native PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W3 /utf-8 /permissive- /bigobj>)
   target_link_options(refract_native PRIVATE /STACK:8388608)

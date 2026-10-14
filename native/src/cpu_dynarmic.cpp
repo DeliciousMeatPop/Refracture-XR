@@ -334,9 +334,9 @@ public:
     void InstructionCacheOperationRaised(A64::InstructionCacheOperation op,
                                          A64::VAddr value) override {
         if (op == A64::InstructionCacheOperation::InvalidateByVAToPoU)
-            CpuInvalidateCode(value & ~63ull, 64);
+            DynarmicInvalidateCode(value & ~63ull, 64);
         else
-            CpuInvalidateCode(0, ~0ull);
+            DynarmicInvalidateCode(0, ~0ull);
     }
 
     void AddTicks(std::uint64_t) override {}
@@ -380,7 +380,7 @@ private:
 
 }  // namespace
 
-void CpuInit(size_t max_cores) {
+void DynarmicCpuInit(size_t max_cores) {
     g_monitor = std::make_unique<Dynarmic::ExclusiveMonitor>(max_cores);
     g_cores.assign(max_cores, nullptr);
     LARGE_INTEGER f;
@@ -388,7 +388,7 @@ void CpuInit(size_t max_cores) {
     g_qpc_freq = static_cast<u64>(f.QuadPart);
 }
 
-std::unique_ptr<CpuCore> CreateCpuCore() {
+std::unique_ptr<CpuCore> CreateDynarmicCore() {
     size_t slot = SIZE_MAX;
     {
         std::lock_guard lock(g_cores_mu);
@@ -408,7 +408,7 @@ std::unique_ptr<CpuCore> CreateCpuCore() {
     return core;
 }
 
-void CpuInvalidateCode(u64 addr, u64 len) {
+void DynarmicInvalidateCode(u64 addr, u64 len) {
     std::lock_guard lock(g_cores_mu);
     for (DynCore* c : g_cores)
         if (c && c != reinterpret_cast<DynCore*>(1))

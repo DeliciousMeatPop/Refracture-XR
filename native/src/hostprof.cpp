@@ -46,6 +46,38 @@ std::string Describe(u64 rip, std::unordered_map<u64, std::string>& cache) {
     return name;
 }
 
+bool InMainModule(u64 rip) {
+    static const auto range = [] {
+        auto* base = reinterpret_cast<const u8*>(GetModuleHandleW(nullptr));
+        auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + reinterpret_cast<const IMAGE_DOS_HEADER*>(base)->e_lfanew);
+        return std::pair<u64, u64>(reinterpret_cast<u64>(base), reinterpret_cast<u64>(base) + nt->OptionalHeader.SizeOfImage);
+    }();
+    return rip >= range.first && rip < range.second;
+}
+
+// A sample in a system DLL (no symbols there) is named after the refract_native function that
+// called into it, "ntdll.dll+? < rn::SleepUntil", or "< [jit]" when the caller has no unwind data
+// (generated code). CallerOf runs while the thread is suspended, so it only unwinds: no locks,
+// no allocation. Returns 0 for a sample in refract_native or translated code, 1 for "[jit]".
+u64 CallerOf(CONTEXT ctx) {
+    if (InMainModule(ctx.Rip))
+        return 0;
+    for (int depth = 0; depth < 16; ++depth) {
+        DWORD64 image = 0;
+        PRUNTIME_FUNCTION fn = RtlLookupFunctionEntry(ctx.Rip, &image, nullptr);
+        if (!fn)
+            return depth == 0 ? 0 : 1;  // the sample itself in generated code, or a call from it
+        void* handler_data = nullptr;
+        DWORD64 frame = 0;
+        RtlVirtualUnwind(UNW_FLAG_NHANDLER, image, ctx.Rip, fn, &ctx, &handler_data, &frame, nullptr);
+        if (!ctx.Rip)
+            return 0;
+        if (InMainModule(ctx.Rip))
+            return ctx.Rip;
+    }
+    return 0;
+}
+
 }  // namespace
 
 void StartHostProfiler(const std::string& filter) {
@@ -84,11 +116,21 @@ void StartHostProfiler(const std::string& filter) {
                 if (!h || SuspendThread(h) == static_cast<DWORD>(-1))
                     continue;
                 CONTEXT ctx{};
-                ctx.ContextFlags = CONTEXT_CONTROL;
+                ctx.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
                 bool ok = GetThreadContext(h, &ctx) != 0;
+                const u64 caller = ok ? CallerOf(ctx) : 0;
                 ResumeThread(h);
-                if (ok)
-                    ++samples[name][Describe(ctx.Rip, cache)];
+                if (!ok)
+                    continue;
+                std::string where = Describe(ctx.Rip, cache);
+                if (where == "[jit]")
+                    if (const char* tier = CpuCodeTier(ctx.Rip))
+                        where = std::string("[jit ") + tier + "]";
+                if (caller == 1)
+                    where += " < [jit]";
+                else if (caller)
+                    where += " < " + Describe(caller, cache);
+                ++samples[name][where];
             }
             if (GetTickCount() - start < window)
                 continue;

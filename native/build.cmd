@@ -9,6 +9,11 @@ set "PATH=%ANDROID_SDK%\cmake\3.31.6\bin;%PATH%"
 set "SRC=%~dp0."
 set "OUT=%~dp0..\build-native"
 python "%SRC%\tools\gen_thunks.py" || exit /b 1
+rem The Digitalis CPU backend needs clang-cl (external\llvm); without it only Dynarmic is built.
+if not defined REFRACT_LLVM set "REFRACT_LLVM=%~dp0..\..\external\llvm"
+if exist "%REFRACT_LLVM%\bin\clang-cl.exe" (
+  call "%SRC%\digitalis\build.cmd" || exit /b 1
+)
 if not exist "%OUT%\build.ninja" (
   cmake -S "%SRC%" -B "%OUT%" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo || exit /b 1
 )

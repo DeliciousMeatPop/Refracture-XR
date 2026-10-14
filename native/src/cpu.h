@@ -1,5 +1,6 @@
-// One ARM64 CPU context per guest thread. The translator behind it is replaceable
-// (Dynarmic now; Digitalis is the intended faster backend).
+// One ARM64 CPU context per guest thread. Two translators can sit behind it: Dynarmic, and
+// Digitalis (the translator Refract uses in the emulator, built by native/digitalis). REFRACT_CPU
+// picks one (cpu.cpp).
 #pragma once
 
 #include <array>
@@ -57,13 +58,25 @@ public:
 
 // Backend setup: max_cores bounds concurrently existing cores (exclusive monitor).
 void CpuInit(size_t max_cores);
+const char* CpuBackendName();
 std::unique_ptr<CpuCore> CreateCpuCore();
 // Drop translated code for [addr, addr+len) in every core.
 void CpuInvalidateCode(u64 addr, u64 len);
+// Which tier generated the host code at host_pc ("lite", "heavy"), or nullptr (unknown or Dynarmic).
+const char* CpuCodeTier(u64 host_pc);
 // Emulates an untranslatable instruction from inside the JIT (emulate.cpp); false = leave Run().
 bool EmulateInJit(u64 pc);
 // Runs the current thread's syscall (svc #0) from inside the JIT (thread.cpp): 0 = not handled
 // here (leave Run()), 1 = done, 2 = done but the thread needs the run loop (signal, exit, ...).
 int SyscallInJit();
+
+// The backends (cpu_dynarmic.cpp, native/digitalis/src/cpu_digitalis.cpp).
+void DynarmicCpuInit(size_t max_cores);
+std::unique_ptr<CpuCore> CreateDynarmicCore();
+void DynarmicInvalidateCode(u64 addr, u64 len);
+void DigitalisCpuInit();
+std::unique_ptr<CpuCore> CreateDigitalisCore();
+void DigitalisInvalidateCode(u64 addr, u64 len);
+const char* DigitalisCodeTier(u64 host_pc);
 
 }  // namespace rn

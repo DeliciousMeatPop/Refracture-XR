@@ -1,0 +1,1288 @@
+{
+ "objs": {
+  "libberberis_assembler": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler/android_x86_64_static/obj/frameworks/libs/binary_translation/assembler/machine_code.o",
+    "src": "frameworks/libs/binary_translation/assembler/machine_code.cc",
+    "vars": {
+     "description": "${m.libberberis_assembler_android_x86_64_static.moduleDesc}clang++ machine_code.cc${m.libberberis_assembler_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_assembler;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_assembler_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_backend_arm64_to_x86_64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/common/lifetime_analysis.o",
+    "src": "frameworks/libs/binary_translation/backend/common/lifetime_analysis.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ common/lifetime_analysis.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/common/machine_ir_debug.o",
+    "src": "frameworks/libs/binary_translation/backend/common/machine_ir_debug.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ common/machine_ir_debug.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/common/machine_ir_opt.o",
+    "src": "frameworks/libs/binary_translation/backend/common/machine_ir_opt.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ common/machine_ir_opt.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/common/reg_alloc.o",
+    "src": "frameworks/libs/binary_translation/backend/common/reg_alloc.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ common/reg_alloc.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/code.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/code.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/code.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/code_debug.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/code_debug.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/code_debug.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/code_emit.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/code_emit.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/code_emit.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/code_gen.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/code_gen.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/code_gen.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/context_liveness_analyzer.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/context_liveness_analyzer.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/context_liveness_analyzer.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/insn_folding.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/insn_folding.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/insn_folding.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/liveness_analyzer.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/liveness_analyzer.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/liveness_analyzer.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/local_guest_context_optimizer.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/local_guest_context_optimizer.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/local_guest_context_optimizer.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/loop_guest_context_optimizer.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/loop_guest_context_optimizer.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/loop_guest_context_optimizer.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/machine_ir_analysis.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/machine_ir_analysis.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/machine_ir_analysis.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/machine_ir_check.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/machine_ir_check.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/machine_ir_check.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/machine_ir_opt.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/machine_ir_opt.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/machine_ir_opt.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/read_flags_optimizer.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/read_flags_optimizer.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/read_flags_optimizer.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/rename_copy_uses.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/rename_copy_uses.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/rename_copy_uses.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/backend/x86_64/rename_vregs.o",
+    "src": "frameworks/libs/binary_translation/backend/x86_64/rename_vregs.cc",
+    "vars": {
+     "description": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ x86_64/rename_vregs.cc${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_backend_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_backend_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_base": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/config_globals.o",
+    "src": "frameworks/libs/binary_translation/base/config_globals.cc",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang++ config_globals.cc${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/exec_region.o",
+    "src": "frameworks/libs/binary_translation/base/exec_region.cc",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang++ exec_region.cc${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/format_buffer.o",
+    "src": "frameworks/libs/binary_translation/base/format_buffer.cc",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang++ format_buffer.cc${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/large_mmap.o",
+    "src": "frameworks/libs/binary_translation/base/large_mmap.cc",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang++ large_mmap.cc${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/maps_snapshot.o",
+    "src": "frameworks/libs/binary_translation/base/maps_snapshot.cc",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang++ maps_snapshot.cc${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/mapped_file_fragment.o",
+    "src": "frameworks/libs/binary_translation/base/mapped_file_fragment.cc",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang++ mapped_file_fragment.cc${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/memfd_backed_mmap.o",
+    "src": "frameworks/libs/binary_translation/base/memfd_backed_mmap.cc",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang++ memfd_backed_mmap.cc${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/mmap_posix.o",
+    "src": "frameworks/libs/binary_translation/base/mmap_posix.cc",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang++ mmap_posix.cc${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/prctl_helpers.o",
+    "src": "frameworks/libs/binary_translation/base/prctl_helpers.cc",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang++ prctl_helpers.cc${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/tracing.o",
+    "src": "frameworks/libs/binary_translation/base/tracing.cc",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang++ tracing.cc${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/base/libberberis_base/android_x86_64_static/obj/frameworks/libs/binary_translation/base/raw_syscall_x86_64.o",
+    "src": "frameworks/libs/binary_translation/base/raw_syscall_x86_64.S",
+    "vars": {
+     "description": "${m.libberberis_base_android_x86_64_static.moduleDesc}clang raw_syscall_x86_64.S${m.libberberis_base_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_base;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_base_android_x86_64_static.cFlags3}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_code_gen_lib_arm64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/code_gen_lib/libberberis_code_gen_lib_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/code_gen_lib/all_to_x86_64/code_gen_lib.o",
+    "src": "frameworks/libs/binary_translation/code_gen_lib/all_to_x86_64/code_gen_lib.cc",
+    "vars": {
+     "description": "${m.libberberis_code_gen_lib_arm64_android_x86_64_static.moduleDesc}clang++ all_to_x86_64/code_gen_lib.cc${m.libberberis_code_gen_lib_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_code_gen_lib_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_code_gen_lib_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/code_gen_lib/libberberis_code_gen_lib_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/code_gen_lib/arm64_to_x86_64/gen_wrapper.o",
+    "src": "frameworks/libs/binary_translation/code_gen_lib/arm64_to_x86_64/gen_wrapper.cc",
+    "vars": {
+     "description": "${m.libberberis_code_gen_lib_arm64_android_x86_64_static.moduleDesc}clang++ arm64_to_x86_64/gen_wrapper.cc${m.libberberis_code_gen_lib_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_code_gen_lib_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_code_gen_lib_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_guest_os_primitives_arm64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_signal_action_arch.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_signal_action_arch.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_signal_action_arch.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_signal_handling_arch.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_signal_handling_arch.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_signal_handling_arch.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_thread_pthread_create_arch.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_thread_pthread_create_arch.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_thread_pthread_create_arch.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_map_shadow.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_map_shadow.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_map_shadow.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_signal_action.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_signal_action.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_signal_action.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_signal_handling.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_signal_handling.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_signal_handling.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_thread.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_thread.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_thread.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_thread_clone.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_thread_clone.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_thread_clone.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_thread_key.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_thread_key.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_thread_key.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_thread_manager.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_thread_manager.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_thread_manager.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_thread_map.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_thread_map.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_thread_map.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/guest_thread_pthread_create.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/guest_thread_pthread_create.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ guest_thread_pthread_create.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/arm64/guest_setjmp.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/arm64/guest_setjmp.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ arm64/guest_setjmp.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/arm64/guest_signal.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/arm64/guest_signal.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ arm64/guest_signal.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/unmap_and_exit_x86_64.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/unmap_and_exit_x86_64.S",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang unmap_and_exit_x86_64.S${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags3}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_os_primitives/libberberis_guest_os_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_os_primitives/arm64/gen_syscall_numbers_x86_64.o",
+    "src": "frameworks/libs/binary_translation/guest_os_primitives/arm64/gen_syscall_numbers_x86_64.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDesc}clang++ arm64/gen_syscall_numbers_x86_64.cc${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_os_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_os_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_guest_state_arm64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_state/libberberis_guest_state_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_state/guest_state.o",
+    "src": "frameworks/libs/binary_translation/guest_state/guest_state.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_state_arm64_android_x86_64_static.moduleDesc}clang++ guest_state.cc${m.libberberis_guest_state_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_state_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_state_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_state/libberberis_guest_state_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_state/arm64/get_cpu_state.o",
+    "src": "frameworks/libs/binary_translation/guest_state/arm64/get_cpu_state.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_state_arm64_android_x86_64_static.moduleDesc}clang++ arm64/get_cpu_state.cc${m.libberberis_guest_state_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_state_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_state_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/guest_state/libberberis_guest_state_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/guest_state/arm64/guest_state_arch.o",
+    "src": "frameworks/libs/binary_translation/guest_state/arm64/guest_state_arch.cc",
+    "vars": {
+     "description": "${m.libberberis_guest_state_arm64_android_x86_64_static.moduleDesc}clang++ arm64/guest_state_arch.cc${m.libberberis_guest_state_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_guest_state_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_guest_state_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_heavy_optimizer_arm64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/heavy_optimizer/arm64/libberberis_heavy_optimizer_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/heavy_optimizer/arm64/frontend.o",
+    "src": "frameworks/libs/binary_translation/heavy_optimizer/arm64/frontend.cc",
+    "vars": {
+     "description": "${m.libberberis_heavy_optimizer_arm64_android_x86_64_static.moduleDesc}clang++ frontend.cc${m.libberberis_heavy_optimizer_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_heavy_optimizer_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_heavy_optimizer_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/heavy_optimizer/arm64/libberberis_heavy_optimizer_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/heavy_optimizer/arm64/heavy_optimize_region.o",
+    "src": "frameworks/libs/binary_translation/heavy_optimizer/arm64/heavy_optimize_region.cc",
+    "vars": {
+     "description": "${m.libberberis_heavy_optimizer_arm64_android_x86_64_static.moduleDesc}clang++ heavy_optimize_region.cc${m.libberberis_heavy_optimizer_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_heavy_optimizer_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_heavy_optimizer_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_instrument": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/instrument/libberberis_instrument/android_x86_64_static/obj/frameworks/libs/binary_translation/instrument/instrument.o",
+    "src": "frameworks/libs/binary_translation/instrument/instrument.cc",
+    "vars": {
+     "description": "${m.libberberis_instrument_android_x86_64_static.moduleDesc}clang++ instrument.cc${m.libberberis_instrument_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_instrument;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_instrument_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_interpreter_arm64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/interpreter/libberberis_interpreter_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/interpreter/arm64/interpreter-main.o",
+    "src": "frameworks/libs/binary_translation/interpreter/arm64/interpreter-main.cc",
+    "vars": {
+     "description": "${m.libberberis_interpreter_arm64_android_x86_64_static.moduleDesc}clang++ arm64/interpreter-main.cc${m.libberberis_interpreter_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_interpreter_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_interpreter_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/interpreter/libberberis_interpreter_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/interpreter/arm64/faulty_memory_accesses_x86_64.o",
+    "src": "frameworks/libs/binary_translation/interpreter/arm64/faulty_memory_accesses_x86_64.cc",
+    "vars": {
+     "description": "${m.libberberis_interpreter_arm64_android_x86_64_static.moduleDesc}clang++ arm64/faulty_memory_accesses_x86_64.cc${m.libberberis_interpreter_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_interpreter_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_interpreter_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_intrinsics_arm64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_intrinsics_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/intrinsics/arm64_to_all/intrinsics.o",
+    "src": "frameworks/libs/binary_translation/intrinsics/arm64_to_all/intrinsics.cc",
+    "vars": {
+     "description": "${m.libberberis_intrinsics_arm64_android_x86_64_static.moduleDesc}clang++ arm64_to_all/intrinsics.cc${m.libberberis_intrinsics_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_intrinsics_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_intrinsics_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_kernel_api_arm64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/exec_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/exec_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ exec_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/fcntl_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/fcntl_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ fcntl_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/main_executable_real_path_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/main_executable_real_path_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ main_executable_real_path_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/sys_ptrace_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/sys_ptrace_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ sys_ptrace_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/unistd_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/unistd_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ unistd_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/arm64/epoll_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/arm64/epoll_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ arm64/epoll_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/arm64/syscall_emulation_arch.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/arm64/syscall_emulation_arch.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ arm64/syscall_emulation_arch.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/arm64/syscall_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/arm64/syscall_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ arm64/syscall_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/arm64/open_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/arm64/open_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ arm64/open_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/open_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/open_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ open_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/runtime_bridge.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/runtime_bridge.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ runtime_bridge.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/sigevent_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/sigevent_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ sigevent_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/sys_mman_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/sys_mman_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ sys_mman_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/kernel_api/libberberis_kernel_api_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/kernel_api/sys_prctl_emulation.o",
+    "src": "frameworks/libs/binary_translation/kernel_api/sys_prctl_emulation.cc",
+    "vars": {
+     "description": "${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDesc}clang++ sys_prctl_emulation.cc${m.libberberis_kernel_api_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_kernel_api_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_kernel_api_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_lite_translator_arm64_to_x86_64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/lite_translator/libberberis_lite_translator_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/lite_translator/arm64_to_x86_64/cross_counter.o",
+    "src": "frameworks/libs/binary_translation/lite_translator/arm64_to_x86_64/cross_counter.cc",
+    "vars": {
+     "description": "${m.libberberis_lite_translator_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ arm64_to_x86_64/cross_counter.cc${m.libberberis_lite_translator_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_lite_translator_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_lite_translator_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/lite_translator/libberberis_lite_translator_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/lite_translator/arm64_to_x86_64/lite_translate_region.o",
+    "src": "frameworks/libs/binary_translation/lite_translator/arm64_to_x86_64/lite_translate_region.cc",
+    "vars": {
+     "description": "${m.libberberis_lite_translator_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ arm64_to_x86_64/lite_translate_region.cc${m.libberberis_lite_translator_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_lite_translator_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_lite_translator_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/lite_translator/libberberis_lite_translator_arm64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/lite_translator/arm64_to_x86_64/lite_translator.o",
+    "src": "frameworks/libs/binary_translation/lite_translator/arm64_to_x86_64/lite_translator.cc",
+    "vars": {
+     "description": "${m.libberberis_lite_translator_arm64_to_x86_64_android_x86_64_static.moduleDesc}clang++ arm64_to_x86_64/lite_translator.cc${m.libberberis_lite_translator_arm64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_lite_translator_arm64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_lite_translator_arm64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_macro_assembler_riscv64_to_x86_64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_macro_assembler_riscv64_to_x86_64/android_x86_64_static/obj/frameworks/libs/binary_translation/intrinsics/riscv64_to_x86_64/constants_pool.o",
+    "src": "frameworks/libs/binary_translation/intrinsics/riscv64_to_x86_64/constants_pool.cc",
+    "vars": {
+     "description": "${m.libberberis_macro_assembler_riscv64_to_x86_64_android_x86_64_static.moduleDesc}clang++ riscv64_to_x86_64/constants_pool.cc${m.libberberis_macro_assembler_riscv64_to_x86_64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_macro_assembler_riscv64_to_x86_64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_macro_assembler_riscv64_to_x86_64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_runtime": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime/libberberis_runtime/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime/berberis.o",
+    "src": "frameworks/libs/binary_translation/runtime/berberis.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_android_x86_64_static.moduleDesc}clang++ berberis.cc${m.libberberis_runtime_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime/libberberis_runtime/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime/execute_guest.o",
+    "src": "frameworks/libs/binary_translation/runtime/execute_guest.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_android_x86_64_static.moduleDesc}clang++ execute_guest.cc${m.libberberis_runtime_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime/libberberis_runtime/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime/execute_guest_call.o",
+    "src": "frameworks/libs/binary_translation/runtime/execute_guest_call.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_android_x86_64_static.moduleDesc}clang++ execute_guest_call.cc${m.libberberis_runtime_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime/libberberis_runtime/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime/runtime_library.o",
+    "src": "frameworks/libs/binary_translation/runtime/runtime_library.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_android_x86_64_static.moduleDesc}clang++ runtime_library.cc${m.libberberis_runtime_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime/libberberis_runtime/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime/translator.o",
+    "src": "frameworks/libs/binary_translation/runtime/translator.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_android_x86_64_static.moduleDesc}clang++ translator.cc${m.libberberis_runtime_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_runtime_arm64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime/arm64/libberberis_runtime_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime/arm64/init_guest_arch.o",
+    "src": "frameworks/libs/binary_translation/runtime/arm64/init_guest_arch.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_arm64_android_x86_64_static.moduleDesc}clang++ init_guest_arch.cc${m.libberberis_runtime_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime/arm64/libberberis_runtime_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime/arm64/run_guest_call.o",
+    "src": "frameworks/libs/binary_translation/runtime/arm64/run_guest_call.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_arm64_android_x86_64_static.moduleDesc}clang++ run_guest_call.cc${m.libberberis_runtime_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime/arm64/libberberis_runtime_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime/arm64/translator.o",
+    "src": "frameworks/libs/binary_translation/runtime/arm64/translator.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_arm64_android_x86_64_static.moduleDesc}clang++ translator.cc${m.libberberis_runtime_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime/arm64/libberberis_runtime_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime/runtime_library_x86_64.o",
+    "src": "frameworks/libs/binary_translation/runtime/runtime_library_x86_64.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_arm64_android_x86_64_static.moduleDesc}clang++ runtime_library_x86_64.cc${m.libberberis_runtime_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime/arm64/libberberis_runtime_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime/arm64/translator_x86_64.o",
+    "src": "frameworks/libs/binary_translation/runtime/arm64/translator_x86_64.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_arm64_android_x86_64_static.moduleDesc}clang++ translator_x86_64.cc${m.libberberis_runtime_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_runtime_primitives": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/code_pool.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/code_pool.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ code_pool.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/crash_reporter.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/crash_reporter.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ crash_reporter.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/exec_region_anonymous.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/exec_region_anonymous.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ exec_region_anonymous.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/guest_code_region.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/guest_code_region.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ guest_code_region.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/guest_function_wrapper_impl.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/guest_function_wrapper_impl.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ guest_function_wrapper_impl.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/host_entries.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/host_entries.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ host_entries.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/host_function_wrapper_impl.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/host_function_wrapper_impl.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ host_function_wrapper_impl.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/known_guest_function_wrapper.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/known_guest_function_wrapper.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ known_guest_function_wrapper.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/platform.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/platform.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ platform.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/profiler_interface.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/profiler_interface.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ profiler_interface.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/recovery_code.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/recovery_code.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ recovery_code.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/signal_queue.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/signal_queue.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ signal_queue.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/translation_cache.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/translation_cache.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ translation_cache.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/virtual_guest_call_frame.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/virtual_guest_call_frame.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_android_x86_64_static.moduleDesc}clang++ virtual_guest_call_frame.cc${m.libberberis_runtime_primitives_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ],
+  "libberberis_runtime_primitives_arm64": [
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/memory_region_reservation.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/memory_region_reservation.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_arm64_android_x86_64_static.moduleDesc}clang++ memory_region_reservation.cc${m.libberberis_runtime_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/checks_arm64.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/checks_arm64.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_arm64_android_x86_64_static.moduleDesc}clang++ checks_arm64.cc${m.libberberis_runtime_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/interpret_helpers_arm64.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/interpret_helpers_arm64.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_arm64_android_x86_64_static.moduleDesc}clang++ interpret_helpers_arm64.cc${m.libberberis_runtime_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   },
+   {
+    "obj": "out/soong/.intermediates/frameworks/libs/binary_translation/runtime_primitives/libberberis_runtime_primitives_arm64/android_x86_64_static/obj/frameworks/libs/binary_translation/runtime_primitives/virtual_guest_call_frame_arm64.o",
+    "src": "frameworks/libs/binary_translation/runtime_primitives/virtual_guest_call_frame_arm64.cc",
+    "vars": {
+     "description": "${m.libberberis_runtime_primitives_arm64_android_x86_64_static.moduleDesc}clang++ virtual_guest_call_frame_arm64.cc${m.libberberis_runtime_primitives_arm64_android_x86_64_static.moduleDescSuffix}",
+     "tags": "module_name=libberberis_runtime_primitives_arm64;module_type=cc_library_static;rule_name=cc",
+     "cFlags": "${m.libberberis_runtime_primitives_arm64_android_x86_64_static.cFlags1}",
+     "ccCmd": "${g.android.soong.cc.config.ClangBin}/clang++",
+     "postCmd =": ""
+    }
+   }
+  ]
+ },
+ "vars": {
+  "libberberis_assembler": {
+   "moduleDesc": "//frameworks/libs/binary_translation/assembler:libberberis_assembler ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/assembler -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/assembler/include -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_backend_arm64_to_x86_64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/backend:libberberis_backend_arm64_to_x86_64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/backend -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/binary_translation/code_gen_lib/include -Iframeworks/libs/binary_translation/assembler/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iframeworks/libs/binary_translation/backend/include -Iframeworks/libs/binary_translation/device_arch_info/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/device_arch_info/libberberis_device_arch_info_device_insn_info_gen_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/device_arch_info/libberberis_device_arch_info_device_insn_info_gen_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/device_arch_info/libberberis_device_arch_info_reg_class_gen_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/device_arch_info/libberberis_device_arch_info_reg_class_gen_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/device_arch_info/libberberis_device_arch_info_reg_class_gen_headers_x86_64/gen -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iframeworks/libs/binary_translation/intrinsics/riscv64_to_all/include -Iframeworks/libs/binary_translation/intrinsics/riscv64_to_x86_64/include -Iframeworks/libs/binary_translation/intrinsics/include -Iframeworks/libs/binary_translation/intrinsics/all_to_x86_32_or_x86_64/include -Iframeworks/libs/binary_translation/intrinsics/all_to_x86_64/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_verifier_assembler_gen_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_verifier_assembler_gen_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_macro_assembler_gen_headers_riscv64_to_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_machine_ir_gen_headers_arm64_to_x86_64/gen -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_base": {
+   "moduleDesc": "//frameworks/libs/binary_translation/base:libberberis_base ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/base -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}",
+   "cFlags3": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000  ${g.android.soong.cc.config.CommonGlobalAsflags} -Iframeworks/libs/binary_translation/base -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -flto=thin -fsplit-lto-unit ${g.android.soong.cc.config.CommonGlobalIncludes} "
+  },
+  "libberberis_code_gen_lib_arm64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/code_gen_lib:libberberis_code_gen_lib_arm64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/code_gen_lib -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/code_gen_lib/arm64_to_all/include -Iframeworks/libs/binary_translation/assembler/include -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/calling_conventions/include -Iframeworks/libs/binary_translation/code_gen_lib/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iframeworks/libs/binary_translation/kernel_api/include -Iframeworks/libs/binary_translation/instrument/include -Iframeworks/libs/binary_translation/guest_abi/arm64/include -Iframeworks/libs/binary_translation/guest_abi/include -Ilibnativehelper/include_jni -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_ARM64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_guest_os_primitives_arm64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/guest_os_primitives:libberberis_guest_os_primitives_arm64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/guest_os_primitives/arm64 -Ibionic/libc -Iframeworks/libs/binary_translation/guest_os_primitives -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/guest_os_primitives -Iframeworks/libs/binary_translation/guest_abi/include -Ilibnativehelper/include_jni -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/binary_translation/calling_conventions/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iframeworks/libs/binary_translation/assembler/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/instrument/include -Iframeworks/libs/binary_translation/runtime/include -Iframeworks/libs/native_bridge_support/android_api/linker/include -Iframeworks/libs/binary_translation/guest_abi/arm64/include -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iframeworks/libs/binary_translation/guest_os_primitives/include -Iframeworks/libs/binary_translation/guest_os_primitives/arm64/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_ARM64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}",
+   "cFlags3": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000  ${g.android.soong.cc.config.CommonGlobalAsflags} -Iframeworks/libs/binary_translation/guest_os_primitives/arm64 -Ibionic/libc -Iframeworks/libs/binary_translation/guest_os_primitives -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/guest_os_primitives -Iframeworks/libs/binary_translation/guest_abi/include -Ilibnativehelper/include_jni -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/binary_translation/calling_conventions/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iframeworks/libs/binary_translation/assembler/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/instrument/include -Iframeworks/libs/binary_translation/runtime/include -Iframeworks/libs/native_bridge_support/android_api/linker/include -Iframeworks/libs/binary_translation/guest_abi/arm64/include -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iframeworks/libs/binary_translation/guest_os_primitives/include -Iframeworks/libs/binary_translation/guest_os_primitives/arm64/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -flto=thin -fsplit-lto-unit ${g.android.soong.cc.config.CommonGlobalIncludes} "
+  },
+  "libberberis_guest_state_arm64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/guest_state:libberberis_guest_state_arm64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/guest_state -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/native_bridge_support/guest_state_accessor/include -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_ARM64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_heavy_optimizer_arm64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/heavy_optimizer/arm64:libberberis_heavy_optimizer_arm64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/heavy_optimizer/arm64 -Iframeworks/libs/binary_translation/heavy_optimizer/arm64 -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/binary_translation/backend/include -Iframeworks/libs/binary_translation/assembler/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/device_arch_info/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/device_arch_info/libberberis_device_arch_info_device_insn_info_gen_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/device_arch_info/libberberis_device_arch_info_device_insn_info_gen_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/device_arch_info/libberberis_device_arch_info_reg_class_gen_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/device_arch_info/libberberis_device_arch_info_reg_class_gen_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/device_arch_info/libberberis_device_arch_info_reg_class_gen_headers_x86_64/gen -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/intrinsics/riscv64_to_all/include -Iframeworks/libs/binary_translation/intrinsics/riscv64_to_x86_64/include -Iframeworks/libs/binary_translation/intrinsics/include -Iframeworks/libs/binary_translation/intrinsics/all_to_x86_32_or_x86_64/include -Iframeworks/libs/binary_translation/intrinsics/all_to_x86_64/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_verifier_assembler_gen_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_verifier_assembler_gen_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_macro_assembler_gen_headers_riscv64_to_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/backend/libberberis_backend_machine_ir_gen_headers_arm64_to_x86_64/gen -Iframeworks/libs/binary_translation/decoder/include -Iframeworks/libs/binary_translation/heavy_optimizer/arm64/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_intrinsics_gen_inline_headers_riscv64_to_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_intrinsics_gen_public_headers_riscv64_to_x86_64/gen -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_instrument": {
+   "moduleDesc": "//frameworks/libs/binary_translation/instrument:libberberis_instrument ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/instrument -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/instrument/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_interpreter_arm64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/interpreter:libberberis_interpreter_arm64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/interpreter -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/binary_translation/decoder/include -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/interpreter/include -Iframeworks/libs/binary_translation/kernel_api/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iframeworks/libs/binary_translation/assembler/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_intrinsics_arm64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/intrinsics:libberberis_intrinsics_arm64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/intrinsics -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/binary_translation/intrinsics/arm64_to_all/include -Iframeworks/libs/binary_translation/intrinsics/all_to_x86_32_or_x86_64/include -Iframeworks/libs/binary_translation/intrinsics/all_to_x86_64/include -Iframeworks/libs/binary_translation/intrinsics/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_verifier_assembler_gen_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_verifier_assembler_gen_headers_x86_64/gen -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_kernel_api_arm64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/kernel_api:libberberis_kernel_api_arm64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/kernel_api/arm64 -Iframeworks/libs/binary_translation/kernel_api -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/guest_os_primitives/include -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iframeworks/libs/binary_translation/assembler/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/guest_os_primitives/arm64/include -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iframeworks/libs/binary_translation/instrument/include -Iframeworks/libs/binary_translation/kernel_api/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_ARM64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_lite_translator_arm64_to_x86_64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/lite_translator:libberberis_lite_translator_arm64_to_x86_64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/lite_translator -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/binary_translation/code_gen_lib/include -Iframeworks/libs/binary_translation/assembler/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iframeworks/libs/binary_translation/decoder/include -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iframeworks/libs/binary_translation/kernel_api/include -Iframeworks/libs/binary_translation/lite_translator/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Isystem/logging/liblog/include -Ibionic/libc/async_safe/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_macro_assembler_riscv64_to_x86_64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/intrinsics:libberberis_macro_assembler_riscv64_to_x86_64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/intrinsics -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/assembler/include -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/intrinsics/riscv64_to_all/include -Iframeworks/libs/binary_translation/intrinsics/riscv64_to_x86_64/include -Iframeworks/libs/binary_translation/intrinsics/include -Iframeworks/libs/binary_translation/intrinsics/all_to_x86_32_or_x86_64/include -Iframeworks/libs/binary_translation/intrinsics/all_to_x86_64/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_verifier_assembler_gen_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_verifier_assembler_gen_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/intrinsics/libberberis_macro_assembler_gen_headers_riscv64_to_x86_64/gen -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_runtime": {
+   "moduleDesc": "//frameworks/libs/binary_translation/runtime:libberberis_runtime ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/runtime -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/guest_os_primitives/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iframeworks/libs/binary_translation/assembler/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/runtime/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_runtime_arm64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/runtime/arm64:libberberis_runtime_arm64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/runtime/arm64 -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/heavy_optimizer/arm64/include -Iframeworks/libs/binary_translation/assembler/include -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/lite_translator/include -Iframeworks/libs/binary_translation/calling_conventions/include -Iframeworks/libs/binary_translation/guest_abi/arm64/include -Iframeworks/libs/binary_translation/guest_abi/include -Ilibnativehelper/include_jni -Iframeworks/libs/binary_translation/runtime_primitives/include -Iframeworks/libs/binary_translation/guest_os_primitives/include -Iframeworks/libs/binary_translation/instrument/include -Iframeworks/libs/binary_translation/interpreter/include -Iframeworks/libs/binary_translation/runtime/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_ARM64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_runtime_primitives": {
+   "moduleDesc": "//frameworks/libs/binary_translation/runtime_primitives:libberberis_runtime_primitives ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/runtime_primitives -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/code_gen_lib/include -Iframeworks/libs/binary_translation/assembler/include -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iframeworks/libs/binary_translation/guest_abi/include -Ilibnativehelper/include_jni -Iframeworks/libs/binary_translation/calling_conventions/include -Iframeworks/libs/binary_translation/instrument/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  },
+  "libberberis_runtime_primitives_arm64": {
+   "moduleDesc": "//frameworks/libs/binary_translation/runtime_primitives:libberberis_runtime_primitives_arm64 ",
+   "moduleDescSuffix": "",
+   "cFlags1": "-nostdlibinc  ${g.android.soong.cc.config.X86_64Cflags} ${g.android.soong.cc.config.CommonGlobalCflags} ${g.android.soong.cc.config.DeviceGlobalCflags} ${g.android.soong.cc.config.X86_64ToolchainCflags} ${g.android.soong.cc.config.X86_64VariantCflags} -mssse3 -msse4 -msse4.1 -msse4.2 -mpopcnt -target x86_64-linux-android10000 -DANDROID_STRICT -fPIC ${g.android.soong.cc.config.CommonGlobalCppflags} ${g.android.soong.cc.config.DeviceGlobalCppflags} ${g.android.soong.cc.config.X86_64Cppflags} -Iframeworks/libs/binary_translation/runtime_primitives -D__LIBC_API__=10000 -D__LIBM_API__=10000 -D__LIBDL_API__=10000 -Iframeworks/libs/binary_translation/assembler/include -Iframeworks/libs/binary_translation/base/include -Isystem/libbase/include -Iexternal/fmtlib/include -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_riscv/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_32/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_64/gen -Iout/soong/.intermediates/frameworks/libs/binary_translation/assembler/libberberis_assembler_gen_public_headers_using_x86_common/gen -Iframeworks/libs/binary_translation/guest_state/arm64/include -Iframeworks/libs/binary_translation/guest_state/include -Iframeworks/libs/native_bridge_support/guest_state/include -Iframeworks/libs/binary_translation/runtime_primitives/include -Iprebuilts/clang/host/linux-x86/clang-r563880c/android_libc++/platform/x86_64/include/c++/v1 -Iprebuilts/clang/host/linux-x86/clang-r563880c/include/c++/v1 -Ibionic/libc/async_safe/include -Isystem/logging/liblog/include -Ibionic/libc/system_properties/include -Isystem/core/property_service/libpropertyinfoparser/include -isystem bionic/libc/include -isystem bionic/libc/kernel/uapi/asm-x86 -isystem bionic/libc/kernel/uapi -isystem bionic/libc/kernel/android/scsi -isystem bionic/libc/kernel/android/uapi -Wall -Werror -Wextra -Wmost -Wover-aligned -Wunused -Wimplicit-fallthrough -Werror=reorder-init-list -Wdefaulted-function-deleted -DNATIVE_BRIDGE_GUEST_ARCH_RISCV64 -mcx16 -DBERBERIS_GUEST_LP64=1 -DNATIVE_BRIDGE_GUEST_ARCH_ARM64 -flto=thin -fsplit-lto-unit -std=gnu++20 -fno-rtti ${g.android.soong.cc.config.CommonGlobalIncludes}  ${g.android.soong.cc.config.NoOverrideGlobalCflags} ${g.android.soong.cc.config.NoOverride64GlobalCflags}",
+   "tidyFlags2": "'-header-filter=^frameworks/libs/binary_translation/' -quiet -extra-arg-before=-fno-caret-diagnostics -extra-arg-before=-D__clang_analyzer__ -extra-arg-before=-Xclang -extra-arg-before=-analyzer-config -extra-arg-before=-Xclang -extra-arg-before=c++-temp-dtor-inlining=false -checks=${g.android.soong.cc.config.TidyDefaultGlobalChecks},'modernize*',-modernize-use-trailing-return-type,-misc-no-recursion,-readability-function-cognitive-complexity,${g.android.soong.cc.config.TidyGlobalNoChecks}"
+  }
+ }
+}
