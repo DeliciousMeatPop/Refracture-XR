@@ -1,5 +1,6 @@
-// Audio: libaaudio.so for the guest and refract.media.HostAudio (behind the shim's
-// android.media.AudioTrack / AudioRecord), both on WASAPI shared-mode streams of the default Windows
+// Audio: libaaudio.so and libOpenSLES.so (buffer-queue players) for the guest and
+// refract.media.HostAudio (behind the shim's android.media.AudioTrack / AudioRecord), all on
+// WASAPI shared-mode streams of the default Windows
 // playback and recording devices. WASAPI converts rate, channel count and sample format, so every
 // stream gets exactly the format the app asked for, and an AAudio data callback writes straight into
 // the WASAPI buffer (guest addresses are host addresses).
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <atomic>
 #include <bit>
+#include <cmath>
 #include <condition_variable>
 #include <cstring>
 #include <deque>
@@ -26,6 +28,8 @@
 #include <vector>
 
 #include "host_runtime.h"
+#include "linux_abi.h"
+#include "memory.h"
 #include "thunks.h"
 
 namespace rn {
@@ -841,6 +845,728 @@ ThunkFn W() {
     return &Wrap<F>;
 }
 
+// --- libOpenSLES.so --------------------------------------------------------------------------------
+//
+// An OpenSL ES interface (SLObjectItf, SLPlayItf, ...) is the address of a slot that holds the
+// address of a function table. Every object gets a guest page of slots, one per interface kind,
+// pointing at shared tables of stubs (guest/lists/extra/libOpenSLES.txt), so a slot address names
+// both the object and the interface. A player plays its buffer queue through a blocking-write
+// stream on an adopted guest thread, which also runs the app's buffer-queue callback after each
+// buffer. Meta's audio SDK opens its Oboe streams with OpenSL ES, and its Oboe (1.7) deadlocks
+// while holding Wwise's main lock when slCreateEngine fails.
+
+enum : u32 {
+    kSlOk = 0,
+    kSlPreconditionsViolated = 1,
+    kSlParameterInvalid = 2,
+    kSlResourceError = 4,
+    kSlBufferInsufficient = 7,
+    kSlContentUnsupported = 9,
+    kSlFeatureUnsupported = 12,
+};
+enum : u32 { kSlUnrealized = 1, kSlRealized = 2 };
+enum : u32 { kSlStopped = 1, kSlPaused = 2, kSlPlaying = 3 };
+constexpr u32 kSlLocatorOutputMix = 4, kSlLocatorBufferQueue = 6, kSlLocatorAndroidSimpleBufferQueue = 0x800007BD;
+constexpr u32 kSlFormatPcm = 2, kSlFormatPcmEx = 4, kSlReprFloat = 3;
+constexpr u32 kSlTimeUnknown = 0xFFFFFFFF;
+
+// Interface kinds, in slot order.
+enum SlItf : u32 { kItfObject, kItfEngine, kItfPlay, kItfBufferQueue, kItfVolume, kItfConfig, kItfCount };
+
+// An interface id's 16 bytes are its name (gen_thunks.py iid_object).
+std::string SlIdName(u64 iid) {
+    char tag[17] = {};
+    if (!iid || !SafeCopyFromGuest(tag, iid, 16))
+        return "?";
+    return tag;
+}
+
+int SlItfFromId(u64 iid) {
+    static const std::pair<const char*, SlItf> kIds[] = {
+        {"OBJECT", kItfObject},
+        {"ENGINE", kItfEngine},
+        {"PLAY", kItfPlay},
+        {"ANDROIDSIMPLEBUF", kItfBufferQueue},  // SLAndroidSimpleBufferQueueItf and SLBufferQueueItf
+        {"BUFFERQUEUE", kItfBufferQueue},       // share one layout
+        {"VOLUME", kItfVolume},
+        {"ANDROIDCONFIGURA", kItfConfig},
+    };
+    const std::string name = SlIdName(iid);
+    for (const auto& [n, i] : kIds)
+        if (name == n)
+            return i;
+    return -1;
+}
+
+struct SlObject {
+    enum Kind { kEngine, kOutputMix, kPlayer } kind = kEngine;
+    u64 page = 0;
+    bool has[kItfCount] = {};
+    u32 state = kSlUnrealized;
+    // Player
+    Config cfg;
+    u32 queue_cap = 0;
+    Stream* stream = nullptr;
+    std::mutex mu;
+    std::condition_variable cv;
+    std::deque<std::pair<u64, u32>> queue;  // buffers (address, bytes)
+    u32 front_off = 0;                      // bytes of the front buffer already played
+    u32 played = 0;                         // buffers completed since the last Clear
+    u64 clear_gen = 0;
+    u32 play_state = kSlStopped;
+    s64 pos_base = 0;  // device frames at the last stop (positions count from there)
+    u64 bq_cb = 0, bq_ctx = 0;
+    u64 play_cb = 0, play_ctx = 0;
+    u32 play_events = 0, marker = kSlTimeUnknown, update_period = 1000;
+    bool worker_busy = false, free_on_exit = false;
+    s16 volume_mb = 0, stereo_pos = 0;
+    u32 mute = 0, stereo_on = 0;
+    u32 perf_mode = 0 /* SL_ANDROID_PERFORMANCE_NONE */, stream_type = 3 /* SL_ANDROID_STREAM_MEDIA */;
+
+    u64 Itf(SlItf i) const { return page + i * 8; }
+};
+
+std::mutex g_sl_mu;
+std::map<u64, SlObject*> g_sl_objects;  // by slot page
+u64 g_sl_tables[kItfCount] = {};
+thread_local SlObject* tls_sl_player = nullptr;
+
+SlObject* SlFrom(u64 itf, SlItf kind) {
+    std::lock_guard lock(g_sl_mu);
+    auto it = g_sl_objects.find(itf & ~(kPageSize - 1));
+    if (it == g_sl_objects.end() || (itf & (kPageSize - 1)) != kind * 8u)
+        return nullptr;
+    return it->second;
+}
+
+template <typename T>
+void SlPut(u64 addr, T v) {
+    if (addr)
+        SafeCopyToGuest(addr, &v, sizeof(T));
+}
+
+// Fails when a required interface is one this object doesn't have.
+u32 SlCheckInterfaces(const bool (&has)[kItfCount], u32 n, u64 ids, u64 required) {
+    for (u32 i = 0; i < n; ++i) {
+        u64 iid = 0;
+        u32 req = 0;
+        SafeCopyFromGuest(&iid, ids + i * 8, 8);
+        if (required)
+            SafeCopyFromGuest(&req, required + i * 4, 4);
+        const int k = SlItfFromId(iid);
+        if ((k < 0 || !has[k]) && req) {
+            Log("OpenSL ES: required interface %s is not supported", SlIdName(iid).c_str());
+            return kSlFeatureUnsupported;
+        }
+    }
+    return kSlOk;
+}
+
+void SlApplyVolume(SlObject* o) {
+    IAudioStreamVolume* vol = nullptr;
+    if (!o->stream || FAILED(o->stream->client->GetService(__uuidof(IAudioStreamVolume),
+                                                           reinterpret_cast<void**>(&vol))))
+        return;
+    const float gain = o->mute ? 0.0f : static_cast<float>(std::pow(10.0, o->volume_mb / 2000.0));
+    UINT32 n = 0;
+    vol->GetChannelCount(&n);
+    std::vector<float> levels(n, std::min(gain, 1.0f));
+    if (n)
+        vol->SetAllVolumes(n, levels.data());
+    vol->Release();
+}
+
+void RunPlayer(SlObject* o, GuestThread* t) {
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+    tls_sl_player = o;
+    Stream* s = o->stream;
+    std::unique_lock lock(o->mu);
+    while (o->play_state == kSlPlaying) {
+        if (o->queue.empty()) {
+            o->cv.wait_for(lock, std::chrono::milliseconds(50));
+            continue;
+        }
+        const auto [buf, size] = o->queue.front();
+        const u32 off = o->front_off;
+        const u64 gen = o->clear_gen;
+        lock.unlock();
+        const s64 frames = (size - off) / s->frame_bytes;
+        const s64 n = frames > 0 ? Write(s, GuestPtr<const u8>(buf + off), frames, kForever) : 0;
+        lock.lock();
+        if (n < 0) {
+            Log("OpenSL ES: playback device lost");
+            break;
+        }
+        if (gen != o->clear_gen)
+            continue;  // Clear() dropped the buffer meanwhile
+        o->front_off += static_cast<u32>(n) * s->frame_bytes;
+        if (n < frames)
+            continue;  // paused or stopped part way: the loop condition decides
+        o->queue.pop_front();
+        o->front_off = 0;
+        ++o->played;
+        if (const u64 cb = o->bq_cb) {
+            const u64 ctx = o->bq_ctx;
+            lock.unlock();
+            CallGuest(t, cb, {o->Itf(kItfBufferQueue), ctx});
+            lock.lock();
+        }
+    }
+    o->worker_busy = false;
+    const bool free_it = o->free_on_exit;
+    o->cv.notify_all();
+    lock.unlock();
+    tls_sl_player = nullptr;
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
+    if (free_it) {
+        Close(o->stream);
+        delete o;
+    }
+}
+
+u32 SlSetPlayState(SlObject* o, u32 st) {
+    std::unique_lock lock(o->mu);
+    if (o->play_state == st)
+        return kSlOk;
+    o->play_state = st;
+    if (st == kSlPlaying) {
+        lock.unlock();
+        Start(o->stream);
+        lock.lock();
+        if (!o->worker_busy) {
+            o->worker_busy = true;
+            Workers().Post([o](GuestThread* t) { RunPlayer(o, t); });
+        }
+        o->cv.notify_all();
+        return kSlOk;
+    }
+    // Like Android, this doesn't wait for a callback in progress (it may be waiting for a lock the
+    // caller holds); Destroy does.
+    o->cv.notify_all();
+    lock.unlock();
+    Halt(o->stream, st == kSlPaused ? kStatePaused : kStateStopped);  // ends the worker's blocking write
+    lock.lock();
+    if (st == kSlStopped) {
+        s64 frames = 0, ns = 0;
+        DevicePosition(o->stream, &frames, &ns);
+        o->pos_base = frames;
+    }
+    return kSlOk;
+}
+
+SlObject* SlNewObject(SlObject::Kind kind, std::initializer_list<SlItf> itfs) {
+    const s64 page = Mem().Map(0, kPageSize, lx::PROT_READ_ | lx::PROT_WRITE_, lx::MAP_PRIVATE_ | lx::MAP_ANONYMOUS_,
+                               nullptr, 0, "[anon:opensles]");
+    if (page < 0)
+        return nullptr;
+    auto* o = new SlObject;
+    o->kind = kind;
+    o->page = static_cast<u64>(page);
+    for (SlItf i : itfs) {
+        o->has[i] = true;
+        SlPut(o->Itf(i), g_sl_tables[i]);
+    }
+    std::lock_guard lock(g_sl_mu);
+    g_sl_objects[o->page] = o;
+    return o;
+}
+
+// SLObjectItf
+u32 O_Realize(u64 self, u32 /*async: realized synchronously*/) {
+    SlObject* o = SlFrom(self, kItfObject);
+    if (!o)
+        return kSlParameterInvalid;
+    if (o->state == kSlRealized)
+        return kSlPreconditionsViolated;
+    if (o->kind == SlObject::kPlayer && OpenStream(o->cfg, &o->stream) != kOk)
+        return kSlResourceError;
+    if (o->stream)
+        SlApplyVolume(o);
+    o->state = kSlRealized;
+    return kSlOk;
+}
+u32 O_Resume(u64 self, u32) { return SlFrom(self, kItfObject) ? kSlOk : kSlParameterInvalid; }
+u32 O_GetState(u64 self, u64 out) {
+    SlObject* o = SlFrom(self, kItfObject);
+    if (!o || !out)
+        return kSlParameterInvalid;
+    SlPut(out, o->state);
+    return kSlOk;
+}
+u32 O_GetInterface(u64 self, u64 iid, u64 out) {
+    SlObject* o = SlFrom(self, kItfObject);
+    if (!o || !out)
+        return kSlParameterInvalid;
+    const int k = SlItfFromId(iid);
+    if (k < 0 || !o->has[k]) {
+        SlPut<u64>(out, 0);
+        return kSlFeatureUnsupported;
+    }
+    if (o->state != kSlRealized && k != kItfConfig)  // Android configures players before Realize
+        return kSlPreconditionsViolated;
+    SlPut(out, o->Itf(static_cast<SlItf>(k)));
+    return kSlOk;
+}
+u32 O_RegisterCallback(u64 self, u64, u64) { return SlFrom(self, kItfObject) ? kSlOk : kSlParameterInvalid; }
+void O_AbortAsyncOperation(u64) {}
+void O_Destroy(u64 self) {
+    SlObject* o = SlFrom(self, kItfObject);
+    if (!o)
+        return;
+    {
+        std::lock_guard lock(g_sl_mu);
+        g_sl_objects.erase(o->page);
+    }
+    bool worker_frees = false;
+    if (o->stream) {
+        if (tls_sl_player == o) {  // from its own callback: the worker closes it on the way out
+            std::lock_guard lock(o->mu);
+            o->play_state = kSlStopped;
+            o->free_on_exit = worker_frees = true;
+        } else {
+            SlSetPlayState(o, kSlStopped);
+            std::unique_lock lock(o->mu);
+            o->cv.wait(lock, [&] { return !o->worker_busy; });
+        }
+    }
+    Mem().Unmap(o->page, kPageSize);
+    if (worker_frees)
+        return;
+    if (o->stream)
+        Close(o->stream);
+    delete o;
+}
+u32 O_SetPriority(u64, s32, u32) { return kSlOk; }
+u32 O_GetPriority(u64, u64 prio, u64 preemptable) {
+    SlPut<s32>(prio, 0x7FFFFFFF);  // SL_PRIORITY_NORMAL
+    SlPut<u32>(preemptable, 1);
+    return kSlOk;
+}
+u32 O_SetLossOfControlInterfaces(u64, s16, u64, u32) { return kSlOk; }
+
+// SLEngineItf
+u32 E_CreateOutputMix(u64 self, u64 out, u32 n, u64 ids, u64 required) {
+    if (!SlFrom(self, kItfEngine) || !out)
+        return kSlParameterInvalid;
+    const bool has[kItfCount] = {true};
+    if (const u32 r = SlCheckInterfaces(has, n, ids, required))
+        return r;
+    SlObject* o = SlNewObject(SlObject::kOutputMix, {kItfObject});
+    if (!o)
+        return kSlResourceError;
+    SlPut(out, o->Itf(kItfObject));
+    return kSlOk;
+}
+
+u32 E_CreateAudioPlayer(u64 self, u64 out, u64 src, u64 sink, u32 n, u64 ids, u64 required) {
+    if (!SlFrom(self, kItfEngine) || !out || !src || !sink)
+        return kSlParameterInvalid;
+    u64 src_loc = 0, src_fmt = 0, sink_loc = 0;
+    SafeCopyFromGuest(&src_loc, src, 8);
+    SafeCopyFromGuest(&src_fmt, src + 8, 8);
+    SafeCopyFromGuest(&sink_loc, sink, 8);
+    u32 loc[2] = {}, sink_type = 0, fmt[8] = {};
+    if (!src_loc || !src_fmt || !sink_loc || !SafeCopyFromGuest(loc, src_loc, 8) ||
+        !SafeCopyFromGuest(&sink_type, sink_loc, 4) || !SafeCopyFromGuest(fmt, src_fmt, 28))
+        return kSlParameterInvalid;
+    if ((loc[0] != kSlLocatorAndroidSimpleBufferQueue && loc[0] != kSlLocatorBufferQueue) ||
+        sink_type != kSlLocatorOutputMix) {
+        Log("OpenSL ES: unsupported player (source locator 0x%x, sink locator 0x%x)", loc[0], sink_type);
+        return kSlContentUnsupported;
+    }
+    // SLDataFormat_PCM / SLAndroidDataFormat_PCM_EX: type, channels, rate (mHz), bits, container,
+    // channel mask, endianness[, representation].
+    if (fmt[0] == kSlFormatPcmEx)
+        SafeCopyFromGuest(&fmt[7], src_fmt + 28, 4);
+    Config c;
+    c.direction = kDirOutput;
+    c.channels = static_cast<s32>(fmt[1]);
+    c.sample_rate = static_cast<s32>(fmt[2] / 1000);
+    if (fmt[0] != kSlFormatPcm && fmt[0] != kSlFormatPcmEx)
+        c.format = kFmtUnspecified;
+    else if (fmt[3] == 16)
+        c.format = kFmtI16;
+    else if (fmt[3] == 24 && fmt[4] == 24)
+        c.format = kFmtI24;
+    else if (fmt[3] == 32)
+        c.format = fmt[0] == kSlFormatPcmEx && fmt[7] == kSlReprFloat ? kFmtFloat : kFmtI32;
+    else
+        c.format = kFmtUnspecified;
+    if (c.format == kFmtUnspecified || c.channels < 1 || c.channels > 8 || c.sample_rate <= 0) {
+        Log("OpenSL ES: unsupported PCM format (type %u, %u ch, %u mHz, %u/%u bits)", fmt[0], fmt[1], fmt[2],
+            fmt[3], fmt[4]);
+        return kSlContentUnsupported;
+    }
+    const bool has[kItfCount] = {true, false, true, true, true, true};
+    if (const u32 r = SlCheckInterfaces(has, n, ids, required))
+        return r;
+    SlObject* o = SlNewObject(SlObject::kPlayer, {kItfObject, kItfPlay, kItfBufferQueue, kItfVolume, kItfConfig});
+    if (!o)
+        return kSlResourceError;
+    o->cfg = c;
+    o->queue_cap = std::max(loc[1], 1u);
+    SlPut(out, o->Itf(kItfObject));
+    return kSlOk;
+}
+
+u32 E_CreateAudioRecorder(u64, u64, u64, u64, u32, u64, u64) {
+    Log("OpenSL ES: audio recorders are not supported");
+    return kSlFeatureUnsupported;
+}
+u32 E_Unsupported() { return kSlFeatureUnsupported; }
+u32 E_QueryNumSupportedInterfaces(u64, u32, u64 out) {
+    SlPut<u32>(out, 0);
+    return kSlOk;
+}
+u32 E_QueryNumSupportedExtensions(u64, u64 out) {
+    SlPut<u32>(out, 0);
+    return kSlOk;
+}
+u32 E_QuerySupportedInterfaces() { return kSlParameterInvalid; }
+u32 E_IsExtensionSupported(u64, u64, u64 out) {
+    SlPut<u32>(out, 0);
+    return kSlOk;
+}
+
+// SLPlayItf
+u32 P_SetPlayState(u64 self, u32 st) {
+    SlObject* o = SlFrom(self, kItfPlay);
+    if (!o || st < kSlStopped || st > kSlPlaying)
+        return kSlParameterInvalid;
+    if (!o->stream)
+        return kSlPreconditionsViolated;
+    return SlSetPlayState(o, st);
+}
+u32 P_GetPlayState(u64 self, u64 out) {
+    SlObject* o = SlFrom(self, kItfPlay);
+    if (!o || !out)
+        return kSlParameterInvalid;
+    std::lock_guard lock(o->mu);
+    SlPut(out, o->play_state);
+    return kSlOk;
+}
+u32 P_GetDuration(u64, u64 out) {
+    SlPut(out, kSlTimeUnknown);
+    return kSlOk;
+}
+u32 P_GetPosition(u64 self, u64 out) {
+    SlObject* o = SlFrom(self, kItfPlay);
+    if (!o || !out)
+        return kSlParameterInvalid;
+    if (!o->stream) {
+        SlPut<u32>(out, 0);
+        return kSlOk;
+    }
+    s64 frames = 0, ns = 0;
+    DevicePosition(o->stream, &frames, &ns);
+    const s64 played = std::max<s64>(frames - o->pos_base, 0);
+    SlPut(out, static_cast<u32>(played * 1000 / o->cfg.sample_rate));
+    return kSlOk;
+}
+u32 P_RegisterCallback(u64 self, u64 cb, u64 ctx) {
+    SlObject* o = SlFrom(self, kItfPlay);
+    if (!o)
+        return kSlParameterInvalid;
+    std::lock_guard lock(o->mu);
+    o->play_cb = cb;  // play events (markers, head at end) are never raised
+    o->play_ctx = ctx;
+    return kSlOk;
+}
+template <u32 SlObject::*F>
+u32 P_SetU32(u64 self, u32 v) {
+    SlObject* o = SlFrom(self, kItfPlay);
+    if (!o)
+        return kSlParameterInvalid;
+    o->*F = v;
+    return kSlOk;
+}
+template <u32 SlObject::*F>
+u32 P_GetU32(u64 self, u64 out) {
+    SlObject* o = SlFrom(self, kItfPlay);
+    if (!o || !out)
+        return kSlParameterInvalid;
+    SlPut(out, o->*F);
+    return kSlOk;
+}
+u32 P_ClearMarkerPosition(u64 self) { return P_SetU32<&SlObject::marker>(self, kSlTimeUnknown); }
+u32 P_GetMarkerPosition(u64 self, u64 out) {
+    SlObject* o = SlFrom(self, kItfPlay);
+    if (!o || !out)
+        return kSlParameterInvalid;
+    if (o->marker == kSlTimeUnknown)
+        return kSlPreconditionsViolated;
+    SlPut(out, o->marker);
+    return kSlOk;
+}
+
+// SLAndroidSimpleBufferQueueItf / SLBufferQueueItf
+u32 B_Enqueue(u64 self, u64 buf, u32 size) {
+    SlObject* o = SlFrom(self, kItfBufferQueue);
+    if (!o || !buf || !size)
+        return kSlParameterInvalid;
+    std::lock_guard lock(o->mu);
+    if (o->queue.size() >= o->queue_cap)
+        return kSlBufferInsufficient;
+    o->queue.emplace_back(buf, size);
+    o->cv.notify_all();
+    return kSlOk;
+}
+u32 B_Clear(u64 self) {
+    SlObject* o = SlFrom(self, kItfBufferQueue);
+    if (!o)
+        return kSlParameterInvalid;
+    std::lock_guard lock(o->mu);
+    o->queue.clear();
+    o->front_off = 0;
+    o->played = 0;
+    ++o->clear_gen;
+    return kSlOk;
+}
+u32 B_GetState(u64 self, u64 out) {
+    SlObject* o = SlFrom(self, kItfBufferQueue);
+    if (!o || !out)
+        return kSlParameterInvalid;
+    std::lock_guard lock(o->mu);
+    const u32 st[2] = {static_cast<u32>(o->queue.size()), o->played};  // count, index
+    SafeCopyToGuest(out, st, sizeof(st));
+    return kSlOk;
+}
+u32 B_RegisterCallback(u64 self, u64 cb, u64 ctx) {
+    SlObject* o = SlFrom(self, kItfBufferQueue);
+    if (!o)
+        return kSlParameterInvalid;
+    std::lock_guard lock(o->mu);
+    o->bq_cb = cb;
+    o->bq_ctx = ctx;
+    return kSlOk;
+}
+
+// SLVolumeItf
+u32 V_SetVolumeLevel(u64 self, s16 mb) {
+    SlObject* o = SlFrom(self, kItfVolume);
+    if (!o || mb > 0)
+        return kSlParameterInvalid;
+    o->volume_mb = mb;
+    SlApplyVolume(o);
+    return kSlOk;
+}
+u32 V_GetVolumeLevel(u64 self, u64 out) {
+    SlObject* o = SlFrom(self, kItfVolume);
+    if (!o || !out)
+        return kSlParameterInvalid;
+    SlPut(out, o->volume_mb);
+    return kSlOk;
+}
+u32 V_GetMaxVolumeLevel(u64, u64 out) {
+    SlPut<s16>(out, 0);
+    return kSlOk;
+}
+u32 V_SetMute(u64 self, u32 mute) {
+    SlObject* o = SlFrom(self, kItfVolume);
+    if (!o)
+        return kSlParameterInvalid;
+    o->mute = mute != 0;
+    SlApplyVolume(o);
+    return kSlOk;
+}
+template <u32 SlObject::*F>
+u32 V_GetU32(u64 self, u64 out) {
+    SlObject* o = SlFrom(self, kItfVolume);
+    if (!o || !out)
+        return kSlParameterInvalid;
+    SlPut(out, o->*F);
+    return kSlOk;
+}
+u32 V_EnableStereoPosition(u64 self, u32 on) {
+    SlObject* o = SlFrom(self, kItfVolume);
+    if (!o)
+        return kSlParameterInvalid;
+    o->stereo_on = on != 0;  // recorded, not applied
+    return kSlOk;
+}
+u32 V_SetStereoPosition(u64 self, s16 permille) {
+    SlObject* o = SlFrom(self, kItfVolume);
+    if (!o)
+        return kSlParameterInvalid;
+    o->stereo_pos = permille;
+    return kSlOk;
+}
+u32 V_GetStereoPosition(u64 self, u64 out) {
+    SlObject* o = SlFrom(self, kItfVolume);
+    if (!o || !out)
+        return kSlParameterInvalid;
+    SlPut(out, o->stereo_pos);
+    return kSlOk;
+}
+
+// SLAndroidConfigurationItf: the stream type and performance mode keys.
+u32* SlConfigValue(SlObject* o, u64 key) {
+    std::string k;
+    SafeReadString(key, k, 64);
+    if (k == "androidPerformanceMode")
+        return &o->perf_mode;
+    if (k == "androidPlaybackStreamType")
+        return &o->stream_type;
+    return nullptr;
+}
+u32 C_SetConfiguration(u64 self, u64 key, u64 value, u32 size) {
+    SlObject* o = SlFrom(self, kItfConfig);
+    u32* v = o ? SlConfigValue(o, key) : nullptr;
+    if (!v || !value || size < 4)
+        return kSlParameterInvalid;
+    SafeCopyFromGuest(v, value, 4);
+    return kSlOk;
+}
+u32 C_GetConfiguration(u64 self, u64 key, u64 size, u64 value) {
+    SlObject* o = SlFrom(self, kItfConfig);
+    u32* v = o ? SlConfigValue(o, key) : nullptr;
+    if (!v || !size)
+        return kSlParameterInvalid;
+    u32 have = 0;
+    SafeCopyFromGuest(&have, size, 4);
+    SlPut<u32>(size, 4);
+    if (!value)
+        return kSlOk;
+    if (have < 4)
+        return kSlParameterInvalid;
+    SlPut(value, *v);
+    return kSlOk;
+}
+
+// The interface tables, in each interface's function order (OpenSLES.h, OpenSLES_Android.h).
+struct SlMethod {
+    const char* name;
+    ThunkFn fn;
+};
+struct SlTable {
+    SlItf itf;
+    const char* prefix;
+    std::vector<SlMethod> methods;
+};
+const std::vector<SlTable>& SlTables() {
+    static const std::vector<SlTable> tables = {
+        {kItfObject,
+         "Object",
+         {{"Realize", W<&O_Realize>()},
+          {"Resume", W<&O_Resume>()},
+          {"GetState", W<&O_GetState>()},
+          {"GetInterface", W<&O_GetInterface>()},
+          {"RegisterCallback", W<&O_RegisterCallback>()},
+          {"AbortAsyncOperation", W<&O_AbortAsyncOperation>()},
+          {"Destroy", W<&O_Destroy>()},
+          {"SetPriority", W<&O_SetPriority>()},
+          {"GetPriority", W<&O_GetPriority>()},
+          {"SetLossOfControlInterfaces", W<&O_SetLossOfControlInterfaces>()}}},
+        {kItfEngine,
+         "Engine",
+         {{"CreateLEDDevice", W<&E_Unsupported>()},
+          {"CreateVibraDevice", W<&E_Unsupported>()},
+          {"CreateAudioPlayer", W<&E_CreateAudioPlayer>()},
+          {"CreateAudioRecorder", W<&E_CreateAudioRecorder>()},
+          {"CreateMidiPlayer", W<&E_Unsupported>()},
+          {"CreateListener", W<&E_Unsupported>()},
+          {"Create3DGroup", W<&E_Unsupported>()},
+          {"CreateOutputMix", W<&E_CreateOutputMix>()},
+          {"CreateMetadataExtractor", W<&E_Unsupported>()},
+          {"CreateExtensionObject", W<&E_Unsupported>()},
+          {"QueryNumSupportedInterfaces", W<&E_QueryNumSupportedInterfaces>()},
+          {"QuerySupportedInterfaces", W<&E_QuerySupportedInterfaces>()},
+          {"QueryNumSupportedExtensions", W<&E_QueryNumSupportedExtensions>()},
+          {"QuerySupportedExtension", W<&E_QuerySupportedInterfaces>()},
+          {"IsExtensionSupported", W<&E_IsExtensionSupported>()}}},
+        {kItfPlay,
+         "Play",
+         {{"SetPlayState", W<&P_SetPlayState>()},
+          {"GetPlayState", W<&P_GetPlayState>()},
+          {"GetDuration", W<&P_GetDuration>()},
+          {"GetPosition", W<&P_GetPosition>()},
+          {"RegisterCallback", W<&P_RegisterCallback>()},
+          {"SetCallbackEventsMask", W<&P_SetU32<&SlObject::play_events>>()},
+          {"GetCallbackEventsMask", W<&P_GetU32<&SlObject::play_events>>()},
+          {"SetMarkerPosition", W<&P_SetU32<&SlObject::marker>>()},
+          {"ClearMarkerPosition", W<&P_ClearMarkerPosition>()},
+          {"GetMarkerPosition", W<&P_GetMarkerPosition>()},
+          {"SetPositionUpdatePeriod", W<&P_SetU32<&SlObject::update_period>>()},
+          {"GetPositionUpdatePeriod", W<&P_GetU32<&SlObject::update_period>>()}}},
+        {kItfBufferQueue,
+         "BufferQueue",
+         {{"Enqueue", W<&B_Enqueue>()},
+          {"Clear", W<&B_Clear>()},
+          {"GetState", W<&B_GetState>()},
+          {"RegisterCallback", W<&B_RegisterCallback>()}}},
+        {kItfVolume,
+         "Volume",
+         {{"SetVolumeLevel", W<&V_SetVolumeLevel>()},
+          {"GetVolumeLevel", W<&V_GetVolumeLevel>()},
+          {"GetMaxVolumeLevel", W<&V_GetMaxVolumeLevel>()},
+          {"SetMute", W<&V_SetMute>()},
+          {"GetMute", W<&V_GetU32<&SlObject::mute>>()},
+          {"EnableStereoPosition", W<&V_EnableStereoPosition>()},
+          {"IsEnabledStereoPosition", W<&V_GetU32<&SlObject::stereo_on>>()},
+          {"SetStereoPosition", W<&V_SetStereoPosition>()},
+          {"GetStereoPosition", W<&V_GetStereoPosition>()}}},
+        {kItfConfig,
+         "Config",
+         {{"SetConfiguration", W<&C_SetConfiguration>()},
+          {"GetConfiguration", W<&C_GetConfiguration>()},
+          {"AcquireJavaProxy", W<&E_Unsupported>()},
+          {"ReleaseJavaProxy", W<&E_Unsupported>()}}},
+    };
+    return tables;
+}
+
+std::string SlStubName(const SlTable& t, const SlMethod& m) {
+    return std::string("refract_sl_") + t.prefix + "_" + m.name;
+}
+
+// Builds the guest function tables (once the stub library has registered its stubs).
+bool SlInitTables() {
+    static std::once_flag once;
+    static bool ok = false;
+    std::call_once(once, [] {
+        const s64 page = Mem().Map(0, kPageSize, lx::PROT_READ_ | lx::PROT_WRITE_,
+                                   lx::MAP_PRIVATE_ | lx::MAP_ANONYMOUS_, nullptr, 0, "[anon:opensles tables]");
+        if (page < 0)
+            return;
+        u64 at = static_cast<u64>(page);
+        for (const SlTable& t : SlTables()) {
+            g_sl_tables[t.itf] = at;
+            for (const SlMethod& m : t.methods) {
+                const u64 stub = StubAddress(kLibOpenSLES, SlStubName(t, m));
+                if (!stub) {
+                    Log("OpenSL ES: libOpenSLES.so has no %s stub", SlStubName(t, m).c_str());
+                    return;
+                }
+                SlPut(at, stub);
+                at += 8;
+            }
+        }
+        Mem().Protect(static_cast<u64>(page), kPageSize, lx::PROT_READ_);
+        ok = true;
+    });
+    return ok;
+}
+
+u32 Sl_CreateEngine(u64 out, u32, u64, u32 n, u64 ids, u64 required) {
+    if (!out)
+        return kSlParameterInvalid;
+    if (!SlInitTables())
+        return kSlResourceError;
+    const bool has[kItfCount] = {true, true};
+    if (const u32 r = SlCheckInterfaces(has, n, ids, required))
+        return r;
+    SlObject* o = SlNewObject(SlObject::kEngine, {kItfObject, kItfEngine});
+    if (!o)
+        return kSlResourceError;
+    SlPut(out, o->Itf(kItfObject));
+    return kSlOk;
+}
+u32 Sl_QueryNumSupportedEngineInterfaces(u64 out) {
+    SlPut<u32>(out, 0);
+    return kSlOk;
+}
+u32 Sl_QuerySupportedEngineInterfaces() { return kSlParameterInvalid; }
+
 // --- refract.media.HostAudio (android.media.AudioTrack / AudioRecord) ------------------------------
 
 Stream* JStream(jlong h) { return AsStream(reinterpret_cast<Stream*>(h)); }
@@ -1049,6 +1775,15 @@ void RegisterAudioHle() {
             {"AAudio_getMMapPolicy", W<&A_getMMapPolicy>()},
             {"AAudio_setMMapPolicy", W<&A_setMMapPolicy>()},
         });
+    std::map<std::string, ThunkFn> sl = {
+        {"slCreateEngine", W<&Sl_CreateEngine>()},
+        {"slQueryNumSupportedEngineInterfaces", W<&Sl_QueryNumSupportedEngineInterfaces>()},
+        {"slQuerySupportedEngineInterfaces", W<&Sl_QuerySupportedEngineInterfaces>()},
+    };
+    for (const SlTable& t : SlTables())
+        for (const SlMethod& m : t.methods)
+            sl[SlStubName(t, m)] = m.fn;
+    RegisterHostLibrary(kLibOpenSLES, "libOpenSLES.so", std::move(sl));
 }
 
 }  // namespace rn

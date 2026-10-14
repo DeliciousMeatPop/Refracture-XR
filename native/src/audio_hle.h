@@ -1,5 +1,5 @@
-// Audio for the guest: libaaudio.so and the shim's android.media.AudioTrack / AudioRecord, both on
-// WASAPI streams of the default Windows playback and recording devices.
+// Audio for the guest: libaaudio.so, libOpenSLES.so and the shim's android.media.AudioTrack /
+// AudioRecord, all on WASAPI streams of the default Windows playback and recording devices.
 #pragma once
 
 #include <jni.h>

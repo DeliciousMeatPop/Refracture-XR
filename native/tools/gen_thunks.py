@@ -226,10 +226,26 @@ def vulkan(vk_xml: Path) -> list[str]:
     return names
 
 
+def iid_object(name: str) -> list[str]:
+    """OpenSL ES interface ids (const SLInterfaceID, a pointer to 16 bytes): each points at its
+    own name without the SL_IID_ prefix, truncated and zero padded to 16 bytes, which
+    is how the host tells them apart (src/audio_hle.cpp)."""
+    tag = name[len("SL_IID_"):].encode()[:16].ljust(16, b"\0")
+    return ["    .p2align 4", f"    .globl {name}", f"    .type {name}, %object", f"{name}:",
+            f"    .quad .Liid_{name}", f"    .size {name}, 8",
+            f".Liid_{name}:", "    .byte " + ", ".join(str(b) for b in tag)]
+
+
 def name_list_lib(soname: str, list_file: Path) -> None:
-    """List entries: "name[@VER]" (function) or "data:name:size[@VER]" (zeroed object)."""
+    """List entries: "name[@VER]" (function) or "data:name:size[@VER]" (zeroed object).
+    guest/lists/extra/<lib>.txt adds stubs the real library doesn't export (one name per
+    line), for function tables the host builds, such as OpenSL ES interfaces."""
     funcs, data, versions = [], [], {}
-    for line in list_file.read_text().splitlines():
+    lines = list_file.read_text().splitlines()
+    extra_file = list_file.parent / "extra" / list_file.name
+    if extra_file.exists():
+        lines += extra_file.read_text().splitlines()
+    for line in lines:
         line = line.strip()
         if not line or line.startswith("#") or line.startswith("__cfi"):
             continue  # the linker rejects a __cfi_check that isn't page aligned
@@ -247,6 +263,9 @@ def name_list_lib(soname: str, list_file: Path) -> None:
     if data:
         extra.append("    .data")
         for name, size in data:
+            if name.startswith("SL_IID_") and size == 8:
+                extra += iid_object(name)
+                continue
             extra += ["    .p2align 4", f"    .globl {name}", f"    .type {name}, %object", f"{name}:",
                       f"    .zero {size}", f"    .size {name}, {size}"]
     stem = Path(soname).stem

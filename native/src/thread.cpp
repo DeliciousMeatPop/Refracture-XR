@@ -609,7 +609,7 @@ void LogThreadSample(GuestThread* t, int syscall) {
     t->cpu->GetContext(&c);
     std::string bt = DescribeAddress(c.pc) + " < " + DescribeAddress(c.x[30]);
     u64 fp = c.x[29];
-    for (int i = 0; i < 6 && fp; ++i) {
+    for (int i = 0; i < 12 && fp; ++i) {
         u64 fr[2];
         if (!SafeCopyFromGuest(fr, fp, 16) || !fr[1])
             break;
@@ -618,8 +618,10 @@ void LogThreadSample(GuestThread* t, int syscall) {
             break;
         fp = fr[0];
     }
+    // x0 names what a blocked thread waits on (the futex word for futex, 98).
     if (syscall >= 0)
-        Log("sample tid %d '%s' in syscall %d: %s", t->tid, t->name.c_str(), syscall, bt.c_str());
+        Log("sample tid %d '%s' in syscall %d x0=%llx: %s", t->tid, t->name.c_str(), syscall,
+            static_cast<unsigned long long>(c.x[0]), bt.c_str());
     else
         Log("sample tid %d '%s': %s", t->tid, t->name.c_str(), bt.c_str());
 }
