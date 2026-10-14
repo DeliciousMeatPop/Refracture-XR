@@ -162,3 +162,15 @@ test('an emulator keeping an older Digitalis than this release gets it replaced'
   assert.equal(await fake('libberberis_arm64.so', null).translatorCurrent(), false);
   assert.equal(await fake('libndk_translation.so', bundled).translatorCurrent(), false);
 });
+
+test('Refract Native plays through run_native_game.ps1', { skip: process.platform !== 'win32', timeout: 30000 }, async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'refract-native-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, 'tools'));
+  await fs.writeFile(path.join(root, 'tools/run_native_game.ps1'), `
+param($Package, $GameName, $Sysroot, $ObbDir, [switch]$Owned, [switch]$PcViewer, $UserId, $EyeSize, $RenderScale)
+Write-Host "NATIVE $Package|$GameName|$Owned|$PcViewer|$UserId|$EyeSize|$RenderScale"`);
+  const runtime = new Runtime(root, { backend: 'native', userId: '123', pcEyeSize: 1280 });
+  const tail = await new Promise(resolve => runtime.launch({ id: 'g', package: 'com.example.game', name: 'Game', owned: true }, (code, text) => resolve(`${code}:${text}`), 'pc'));
+  assert.match(tail, /^0:[\s\S]*NATIVE com\.example\.game\|Game\|True\|True\|123\|1280\|/);
+});

@@ -105,9 +105,20 @@ anti-cheat, platform security, store restrictions or application license terms.
 
 ## Credits and license
 
-Refract is based on [AXRB](https://github.com/Android-XR-Bridge/AXRB) by Feline Reintgen, and
-much of its code comes from AXRB. See [CREDITS.md](CREDITS.md).
+Refract started as a fork of [AXRB](https://github.com/Android-XR-Bridge/AXRB) by Feline Reintgen.
+It has since grown well beyond it: Refract adds its own Windows launcher, the Vulkan and GLES
+layers, the translator performance work, the Platform SDK stand-in and much more. See
+[CREDITS.md](CREDITS.md).
 
-Refract is released under the [MIT License](LICENSE), which keeps AXRB's MIT copyright
-notice. The launcher ([launcher/](launcher/)) is GPL-3.0-or-later because it includes code
-adapted from RiftLift.
+Refract is licensed under the **GNU General Public License v3.0 or later** ([LICENSE](LICENSE)),
+with one additional term for visible credit ([NOTICE](NOTICE)):
+
+- **Projects built on Refract must stay open source.** If you distribute Refract, a modified
+  version or a project that includes Refract code, you must release its full source code under
+  GPL-3.0-or-later as well.
+- **Using Refract code requires visible credit.** You must credit Refract and link to
+  <https://github.com/MIXIDtheSilly/Refract> where users can see it (a README, an About or
+  credits page, or release notes). See [NOTICE](NOTICE) for the exact wording.
+
+Code that still comes from AXRB was released under the MIT License; its copyright notice is kept
+in [NOTICE](NOTICE).
