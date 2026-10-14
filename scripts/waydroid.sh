@@ -346,8 +346,11 @@ setup_venus() {  # render node, user, user's home
     # Only Nvidia's Vulkan driver, with the chosen GPU listed first (Mesa's device-select layer; its force mode,
     # which would hide the others, breaks Venus). Refract's GPU layer (if built) shares the game's eye images with
     # the PC viewer; VK_LOADER_LAYERS_ENABLE skips it quietly when it is missing.
+    # The 64-bit driver: Steam's 32-bit libraries add nvidia_icd.i686.json, which sorts first and leaves the renderer
+    # without Vulkan (SurfaceFlinger then aborts with "no suitable EGLConfig found").
     local icd="" candidate
-    for candidate in /usr/share/vulkan/icd.d/nvidia_icd*.json /etc/vulkan/icd.d/nvidia_icd*.json; do
+    for candidate in /usr/share/vulkan/icd.d/nvidia_icd.json /usr/share/vulkan/icd.d/nvidia_icd.x86_64.json \
+                     /etc/vulkan/icd.d/nvidia_icd.json /etc/vulkan/icd.d/nvidia_icd.x86_64.json; do
         [[ -f "$candidate" ]] && { icd="$candidate"; break; }
     done
     [[ -n "$icd" ]] || die "Nvidia's Vulkan driver (nvidia_icd.json) is not installed"
