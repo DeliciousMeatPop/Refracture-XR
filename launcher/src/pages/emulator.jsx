@@ -134,8 +134,8 @@ export function EmulatorPage({ state, run, pending, notify }) {
   return <div className="page emulator-page">
     <header className="page-head">
       <div>
-        <h1 className="page-title">Emulator</h1>
-        <div className="page-sub">{status ? <>{status.avd} · {status.serial || `port ${status.configuredPort}`}{status.adopted && ` (adopted; Refract is set to ${status.configuredPort})`}</> : statusError || 'Checking the emulator…'}</div>
+        <h1 className="page-title">{state.platform === 'linux' ? 'Android' : 'Emulator'}</h1>
+        <div className="page-sub">{status ? <>{state.platform === 'linux' ? 'Waydroid' : status.avd} · {status.serial || `port ${status.configuredPort}`}{status.adopted && ` (adopted; Refract is set to ${status.configuredPort})`}</> : statusError || 'Checking the emulator…'}</div>
       </div>
       <div className="emu-actions">
         <span className={`headset-chip emu-chip ${status?.state || ''}`}><span className="dot" />{status ? stateLabels[status.state] : 'Checking'}</span>
@@ -524,7 +524,8 @@ function Storage({ state, status, run, pending, notify, action, busy }) {
 
       {host && <section className="panel">
         <h2>Disk</h2>
-        {!host.exists ? <p className="hint">No virtual device named {state.settings.avd}. Settings &gt; Setup creates it.</p> : <>
+        {state.platform === 'linux' ? <p className="hint">Android’s data is stored in <span className="mono">{host.directory}</span>. Waydroid runs in a container on this PC, so there is no virtual disk to resize or move.</p>
+          : !host.exists ? <p className="hint">No virtual device named {state.settings.avd}. Settings &gt; Setup creates it.</p> : <>
           <KeyValues rows={[
             ['Android’s disk', bytes(host.dataSize)],
             ['File on this PC', bytes(host.total)],
@@ -750,7 +751,12 @@ function Shell({ online }) {
 function EmulatorSettings({ state, run, pending, notify, up }) {
   const { draft, edit, field, toggle, save, saveBar } = useSettingsForm({ state, run, pending, notify });
   return <form className="settings" onSubmit={save}>
-    {up && <p className="note">Changes apply the next time the emulator starts.</p>}
+    {up && state.platform !== 'linux' && <p className="note">Changes apply the next time the emulator starts.</p>}
+    {state.platform === 'linux' ? <section className="panel">
+      <h2>Android in Waydroid</h2>
+      {field('sdk', 'Android SDK (adb and build-tools)', { required: true }, true)}
+      <p className="hint">Android’s memory, CPU cores and audio are Waydroid’s. Set up Waydroid and the GPU in Settings &gt; Setup.</p>
+    </section> : <>
     <section className="panel">
       <h2>Virtual device</h2>
       {field('sdk', 'Android SDK', { required: true }, true)}
@@ -783,6 +789,7 @@ function EmulatorSettings({ state, run, pending, notify, up }) {
       {toggle('showWindow', 'Show the emulator window', 'Android’s own window, for debugging.')}
       {toggle('keepEmulator', 'Keep Android running when Refract closes', 'Makes the next launch faster.')}
     </section>
+    </>}
     {saveBar}
   </form>;
 }

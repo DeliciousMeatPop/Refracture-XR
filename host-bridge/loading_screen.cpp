@@ -1,10 +1,16 @@
 #include "loading_screen.h"
-#if defined(_WIN32)
 #include "refract_logo_png.h"
 
+#if defined(_WIN32)
 #include <windows.h>
 #include <wincodec.h>
 #include <wrl/client.h>
+#else
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_PNG
+#define STBI_NO_STDIO
+#include "stb_image.h"
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -12,7 +18,6 @@
 
 namespace refract::host {
 namespace {
-using Microsoft::WRL::ComPtr;
 
 constexpr float kPi = 3.14159265f;
 constexpr float kFadeSeconds = 0.6f;
@@ -33,18 +38,19 @@ float capsule_distance(float x, float y, float cx, float cy, float halfWidth, fl
     return std::sqrt(dx * dx + (y - cy) * (y - cy)) - radius;
 }
 
+#if defined(_WIN32)
 // Decodes the embedded logo to premultiplied RGBA scaled to size x size.
 bool decode_logo(uint32_t size, std::vector<uint8_t>& out)
 {
     const HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     bool ok = false;
     {
-        ComPtr<IWICImagingFactory> factory;
-        ComPtr<IWICStream> stream;
-        ComPtr<IWICBitmapDecoder> decoder;
-        ComPtr<IWICBitmapFrameDecode> frame;
-        ComPtr<IWICFormatConverter> converter;
-        ComPtr<IWICBitmapScaler> scaler;
+        Microsoft::WRL::ComPtr<IWICImagingFactory> factory;
+        Microsoft::WRL::ComPtr<IWICStream> stream;
+        Microsoft::WRL::ComPtr<IWICBitmapDecoder> decoder;
+        Microsoft::WRL::ComPtr<IWICBitmapFrameDecode> frame;
+        Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
+        Microsoft::WRL::ComPtr<IWICBitmapScaler> scaler;
         out.resize(static_cast<size_t>(size) * size * 4);
         ok = SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory))) &&
              SUCCEEDED(factory->CreateStream(&stream)) &&
@@ -61,6 +67,38 @@ bool decode_logo(uint32_t size, std::vector<uint8_t>& out)
     if (SUCCEEDED(com)) CoUninitialize();
     return ok;
 }
+#else
+// Decodes the embedded logo to premultiplied RGBA scaled to size x size: each output pixel averages the source
+// pixels it covers (a box filter, which is what shrinking the 1024 px logo needs).
+bool decode_logo(uint32_t size, std::vector<uint8_t>& out)
+{
+    int width = 0, height = 0, channels = 0;
+    uint8_t* source = stbi_load_from_memory(kRefractLogoPng, static_cast<int>(sizeof(kRefractLogoPng)), &width, &height, &channels, 4);
+    if (!source) return false;
+    out.assign(static_cast<size_t>(size) * size * 4, 0);
+    const float stepX = static_cast<float>(width) / size, stepY = static_cast<float>(height) / size;
+    for (uint32_t y = 0; y < size; ++y) {
+        for (uint32_t x = 0; x < size; ++x) {
+            const float left = x * stepX, right = left + stepX, top = y * stepY, bottom = top + stepY;
+            float sum[4] = {0, 0, 0, 0}, weight = 0;
+            for (int sy = static_cast<int>(top); sy < (std::min)(height, static_cast<int>(std::ceil(bottom))); ++sy) {
+                const float wy = (std::min)(bottom, sy + 1.0f) - (std::max)(top, static_cast<float>(sy));
+                for (int sx = static_cast<int>(left); sx < (std::min)(width, static_cast<int>(std::ceil(right))); ++sx) {
+                    const float w = wy * ((std::min)(right, sx + 1.0f) - (std::max)(left, static_cast<float>(sx)));
+                    const uint8_t* p = source + (static_cast<size_t>(sy) * width + sx) * 4;
+                    const float alpha = p[3] / 255.0f;
+                    sum[0] += w * p[0] * alpha; sum[1] += w * p[1] * alpha; sum[2] += w * p[2] * alpha; sum[3] += w * p[3];
+                    weight += w;
+                }
+            }
+            uint8_t* o = &out[(static_cast<size_t>(y) * size + x) * 4];
+            if (weight > 0) for (int c = 0; c < 4; ++c) o[c] = static_cast<uint8_t>(std::clamp(sum[c] / weight + 0.5f, 0.0f, 255.0f));
+        }
+    }
+    stbi_image_free(source);
+    return true;
+}
+#endif
 }
 
 void LoadingScreen::prepare(uint32_t width, uint32_t height)
@@ -140,4 +178,3 @@ void LoadingScreen::animate(double seconds)
     }
 }
 }
-#endif

@@ -3,6 +3,7 @@
 #include "image_frame.h"
 #include "openxr_dispatch/openxr_minimal.h"
 #include "pose_client.h"
+#include "host_address.h"
 #include "space_velocity.h"
 #include "video_encoder.h"
 #include "perf_stats.h"
@@ -209,6 +210,18 @@ bool frame_sync_enabled()
 {
 #if defined(__ANDROID__)
     static const bool enabled = int_property("debug.refract.frame_sync", 0, 0, 1) != 0;
+    return enabled;
+#else
+    return false;
+#endif
+}
+
+// debug.refract.uncapped=1 (testing): xrWaitFrame never sleeps, so the game renders as fast as it can instead
+// of at the host display rate (at most 250 Hz).
+bool uncapped_enabled()
+{
+#if defined(__ANDROID__)
+    static const bool enabled = int_property("debug.refract.uncapped", 0, 0, 1) != 0;
     return enabled;
 #else
     return false;
@@ -668,10 +681,12 @@ void create_opengles_swapchain_images(SwapchainRecord& sc, const XrSwapchainCrea
 
 #if defined(__ANDROID__)
 // The emulator, or a real device with debug.refract.direct_host=1, reaches the Windows host
-// directly through `adb reverse` (poses on :38490, images on :38491).
+// directly through `adb reverse` (poses on :38490, images on :38491). Waydroid reaches the Linux
+// host at debug.refract.host_addr instead (see direct_host_address).
 bool direct_to_host()
 {
     static const bool direct = [] {
+        if (direct_host_address()) return true;
         char value[PROP_VALUE_MAX]{};
         __system_property_get("ro.hardware", value);
         if (std::strcmp(value, "ranchu") == 0 || std::strcmp(value, "goldfish") == 0) return true;
@@ -862,12 +877,14 @@ private:
                 sockaddr_in address{};
                 address.sin_family = AF_INET;
                 address.sin_port = htons(38491);
-                inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);
-                if (::connect(candidate, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0) {
+                const char* host = direct_host_address();
+                if (inet_pton(AF_INET, host ? host : "127.0.0.1", &address.sin_addr) == 1 &&
+                    ::connect(candidate, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0) {
                     socket_ = candidate;
                     directWindows_ = true;
                     ++connections_;
-                    __android_log_print(ANDROID_LOG_INFO, "Refract.Image", "connected to Windows image stream via adb reverse :38491");
+                    __android_log_print(ANDROID_LOG_INFO, "Refract.Image", "connected to host image stream at %s:38491",
+                                        host ? host : "127.0.0.1 (adb reverse)");
                     return true;
                 }
             }
@@ -3595,7 +3612,7 @@ XrResult XRAPI_CALL xrWaitFrame_impl(
     // catch-up frames after a slow render or a disconnected transport.
     const XrTime period = refract::protocol::display_period_or_default(pose_client().latest_pose_frame());
     XrTime now = monotonic_time_ns();
-    if (g_nextFrameStart == 0 || now - g_nextFrameStart >= period) {
+    if (g_nextFrameStart == 0 || now - g_nextFrameStart >= period || uncapped_enabled()) {
         g_nextFrameStart = now;
     }
     if (g_nextFrameStart > now) {

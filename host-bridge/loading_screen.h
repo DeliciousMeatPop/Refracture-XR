@@ -1,5 +1,4 @@
 #pragma once
-#if defined(_WIN32)
 #include <cstdint>
 #include <vector>
 
@@ -34,4 +33,3 @@ private:
     bool fading_ = true;
 };
 }
-#endif

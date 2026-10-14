@@ -74,8 +74,8 @@ export function SettingsPage({ state, run, pending, notify, connect, setPage }) 
       </section>
       {draft.backend !== 'native' && <section className="panel">
         <div className="panel-row">
-          <div><h2>Android runtime</h2><p style={{ margin: '3px 0 0', color: 'var(--muted)' }}>The virtual device, memory, CPU cores and audio are on the Emulator page, with its logs and debug tools.</p></div>
-          <button type="button" className="btn btn-outline" onClick={() => setPage('emulator')}><Cpu />Open Emulator</button>
+          <div><h2>Android runtime</h2><p style={{ margin: '3px 0 0', color: 'var(--muted)' }}>{state.platform === 'linux' ? 'Android runs in Waydroid. Its status, logs and debug tools are on the Android page.' : 'The virtual device, memory, CPU cores and audio are on the Emulator page, with its logs and debug tools.'}</p></div>
+          <button type="button" className="btn btn-outline" onClick={() => setPage('emulator')}><Cpu />{state.platform === 'linux' ? 'Open Android' : 'Open Emulator'}</button>
         </div>
       </section>}
       {saveBar}

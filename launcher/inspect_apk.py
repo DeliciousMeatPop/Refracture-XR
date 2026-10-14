@@ -1,5 +1,5 @@
 """Read APK identity with Android SDK tools; never install or modify the APK."""
-import argparse, base64, json, re, subprocess, zipfile
+import argparse, base64, json, os, re, subprocess, zipfile
 from pathlib import Path
 
 MAIN = 'android.intent.action.MAIN'
@@ -54,7 +54,7 @@ def launch_activity(root, package):
     return package + name if name.startswith('.') else name if '.' in name else f'{package}.{name}'
 
 def inspect(apk, sdk):
-    versions = [p for p in (sdk / 'build-tools').glob('*/aapt2.exe')]
+    versions = [p for p in (sdk / 'build-tools').glob('*/aapt2.exe' if os.name == 'nt' else '*/aapt2')]
     if not versions:
         raise RuntimeError('Android SDK build-tools (aapt2) are required')
     tool = max(versions, key=lambda p: tuple(int(x) for x in re.findall(r'\d+', p.parent.name)))

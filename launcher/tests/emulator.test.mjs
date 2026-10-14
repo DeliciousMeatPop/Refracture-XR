@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Emulator, Logcat, parseLogcat, redact, formatEntry } from '../core/emulator.mjs';
-import { emulatorOptions, powershellArgs } from '../core/runtime.mjs';
+import { emulatorOptions, powershellArgs, guestPackages } from '../core/runtime.mjs';
 
 test('logcat threadtime lines split into time, pid, tid, level, tag and message', () => {
   assert.deepEqual(parseLogcat('09-30 16:21:31.722  1234  1250 I Unity   : Loaded scene: Main'),
@@ -57,7 +57,7 @@ test('emulator settings become start script parameters; switches only when on', 
 });
 
 function fakeEmulator(answer) {
-  const emulator = new Emulator({ settings: { sdk: 'C:/nowhere', avd: 'test-avd' }, findPort: async () => 5580 }, 'C:/nowhere', os.tmpdir());
+  const emulator = new Emulator({ settings: { sdk: 'C:/nowhere', avd: 'test-avd' }, findPort: async () => 5580, guestPackages }, 'C:/nowhere', os.tmpdir());
   clearInterval(emulator.logcat.idle);
   emulator.diskInfo = async () => ({ exists: false });
   emulator.asRoot = async (port, script) => { emulator.scripts.push(script); return { code: 0, stdout: answer, stderr: '', timedOut: false }; };
