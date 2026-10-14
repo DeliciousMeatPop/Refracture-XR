@@ -502,6 +502,67 @@ PATCH
     fi
 }
 
+# Waydroid's audio HAL reports a 1024-frame burst. Meta's XR Audio SDK (its EPS engine behind the Wwise endpoint sink)
+# deadlocks on a burst over 480 frames: it outputs silence and Wwise reopens the sink every second (Batman: Arkham
+# Shadow has no sound). A Quest's HAL uses 192 frames, so these copies in the vendor overlay report that.
+# out_get_buffer_size's per-format byte counts change. PulseAudio's buffer stays 1024 frames, so the latency does not.
+# Android's audio HAL service is 32-bit and loads the lib/ copy; both are patched.
+AUDIO_HALS=("vendor/lib/hw/audio.primary.waydroid.so 619695fdc191615cadff68bd720b8047afb211bad6d47c723a79d7a9dfed3d30 2f4f43e0025266f9dca2a619a9e3aefb0869a68055ca44f9a2ddb070999dc0d6"
+            "vendor/lib64/hw/audio.primary.waydroid.so ba1cfb02e44b1f2b1b920f363390b0967c0a4ed21bdb4bc14455cf3f838729e4 24273e66c8fb8c44e3245ae225c4595600b75a183354b9e24b3c20cefaf932fa")
+setup_audio_hal() {
+    local entry lib original patched target source mnt="" status error
+    for entry in "${AUDIO_HALS[@]}"; do
+        read -r lib original patched <<<"$entry"
+        target="$OVERLAY/$lib"
+        [[ -f "$target" && "$(sha256sum <"$target" | cut -d' ' -f1)" == "$patched" ]] && continue
+        rm -f "$target"
+        source="$WAYDROID_WORK/rootfs/$lib"
+        if [[ ! -f "$source" ]]; then
+            if [[ -z "$mnt" ]]; then
+                mnt="$(mktemp -d)"
+                if ! error="$(mount -t ext4 -o ro,loop "$IMAGES/vendor.img" "$mnt" 2>&1)"; then
+                    rmdir "$mnt"
+                    warn "could not read $IMAGES/vendor.img ($error); games using Meta's audio SDK may have no sound"
+                    return 0
+                fi
+            fi
+            source="$mnt/${lib#vendor/}"
+        fi
+        status=0
+        python3 -I - "$source" "$target.new" "$original" "$patched" <<'PATCH' || status=$?
+import hashlib, os, sys
+source, target, expected, patched = sys.argv[1:5]
+d = bytearray(open(source, "rb").read())
+if hashlib.sha256(d).hexdigest() != expected:
+    sys.exit(3)
+# Each format case's mov $imm32 (%esi in the 32-bit build, %ebx in the 64-bit one): 1024 frames' bytes per channel
+# become 192 frames'. File offsets of the 16-, 8-, 32-bit and packed 24-bit cases.
+if "/lib64/" in source:
+    opcode, sites = 0xBB, (0x289C, 0x28A7, 0x288E, 0x28AE)
+else:
+    opcode, sites = 0xBE, (0x20AD, 0x20B4, 0x209D, 0x20BB)
+for at, old, new in zip(sites, (0x800, 0x400, 0x1000, 0xC00), (0x180, 0xC0, 0x300, 0x240)):
+    assert d[at] == opcode and int.from_bytes(d[at + 1:at + 5], "little") == old
+    d[at + 1:at + 5] = new.to_bytes(4, "little")
+assert hashlib.sha256(d).hexdigest() == patched
+os.makedirs(os.path.dirname(target), exist_ok=True)
+open(target, "wb").write(d)
+PATCH
+        case "$status" in
+            0) mv -f "$target.new" "$target"
+               chmod 644 "$target"
+               say "Patched Waydroid's audio HAL ($lib) to a 192-frame burst (Meta XR Audio SDK)" ;;
+            3) warn "unknown $lib in this image; left as is (games using Meta's audio SDK may have no sound)" ;;
+            *) rm -f "$target.new"
+               warn "could not patch $lib" ;;
+        esac
+    done
+    if [[ -n "$mnt" ]]; then
+        umount "$mnt"
+        rmdir "$mnt"
+    fi
+}
+
 # Lets this user's adb in without a prompt that nothing on this PC shows: their key goes into Android's list.
 trust_adb_key() {  # user, user's home
     local user="$1" home="$2" key="$2/.android/adbkey.pub" keys="$2/.local/share/waydroid/data/misc/adb"
@@ -607,6 +668,7 @@ cmd_setup() {
             rm -f "$OVERLAY/system/etc/init/ndk_translation.rc"
     fi
     if [[ $translator == ndk ]]; then setup_ndk_shims install; else setup_ndk_shims remove; fi
+    setup_audio_hal
     local bridge
     case "$translator" in
         digitalis) bridge=libberberis_arm64.so ;;
@@ -869,6 +931,9 @@ cmd_play() {
     # get no network, so the runtime cannot reach the viewer.
     adb_s shell 'locksettings set-disabled true; settings put secure lockscreen.disabled 1; wm dismiss-keyguard' >/dev/null 2>&1 ||
         warn "could not turn off Android's lock screen"
+    # Android's music volume starts at 5 of 15, about -33 dB, so a game is nearly inaudible; the PC's own volume (or
+    # SteamVR's) is what the player turns.
+    adb_s shell 'cmd audio set-volume 3 15' >/dev/null 2>&1 || warn "could not set Android's music volume"
     # LineageOS starts its first-run wizard (org.lineageos.setupwizard) over everything until setup is marked done;
     # it takes focus from the game, which then pauses and never renders. Nobody can click through it either.
     if [[ "$(adb_s shell settings get secure user_setup_complete | tr -d '\r')" != 1 ]]; then
