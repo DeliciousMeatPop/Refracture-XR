@@ -871,8 +871,8 @@ cmd_play() {
         # Android's graphics need the renderer before Waydroid starts.
         systemctl --user is-active --quiet "$VENUS_UNIT" || systemctl --user start "$VENUS_UNIT" ||
             die "the Venus renderer did not start: journalctl --user -u $VENUS_UNIT"
-        # The PC viewer imports the eye images Refract's GPU layer shares from the renderer (as on Windows).
-        [[ $headset == 0 && ${REFRACT_GPU_SHARE:-1} == 1 && -f "$GPU_LAYER_DIR/librefract_gpu_layer.so" ]] && gpu_share=1  # REFRACT_GPU_SHARE=0: testing
+        # The PC viewer and the host bridge import the eye images Refract's GPU layer shares from the renderer (as on Windows).
+        [[ ${REFRACT_GPU_SHARE:-1} == 1 && -f "$GPU_LAYER_DIR/librefract_gpu_layer.so" ]] && gpu_share=1  # REFRACT_GPU_SHARE=0: pixels over TCP
     fi
     if ! session_running; then
         say "Starting Waydroid"

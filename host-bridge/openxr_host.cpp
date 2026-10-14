@@ -1,5 +1,6 @@
 #include "openxr_host.h"
 #include "menu_shortcut.h"
+#include "preview_window.h"
 #include "perf_stats.h"
 #include "mirror_window.h"
 #include "loading_screen.h"
@@ -124,6 +125,8 @@ const char* xr_result_name(XrResult result)
         return "XR_SESSION_NOT_FOCUSED";
     case XR_ERROR_RUNTIME_FAILURE:
         return "XR_ERROR_RUNTIME_FAILURE";
+    case XR_ERROR_API_VERSION_UNSUPPORTED:
+        return "XR_ERROR_API_VERSION_UNSUPPORTED";
     case XR_ERROR_VALIDATION_FAILURE:
         return "XR_ERROR_VALIDATION_FAILURE";
     case XR_ERROR_RUNTIME_UNAVAILABLE:
@@ -492,11 +495,7 @@ public:
         std::strncpy(instanceInfo.applicationInfo.engineName, "Refract", XR_MAX_ENGINE_NAME_SIZE - 1);
         instanceInfo.applicationInfo.applicationVersion = 1;
         instanceInfo.applicationInfo.engineVersion = 1;
-#if defined(_WIN32)
-        instanceInfo.applicationInfo.apiVersion = XR_MAKE_VERSION(1, 0, 0);
-#else
-        instanceInfo.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
-#endif
+        instanceInfo.applicationInfo.apiVersion = XR_MAKE_VERSION(1, 0, 0);  // SteamVR refuses a newer one.
         XrResult result = loader_.createInstance(&instanceInfo, &instance_);
         if (result != XR_SUCCESS) {
             std::fprintf(stderr, "Refract OpenXR: xrCreateInstance failed: %s (%d)\n", xr_result_name(result), result);
@@ -595,11 +594,7 @@ public:
         instanceInfo.applicationInfo.applicationVersion = 1;
         std::strncpy(instanceInfo.applicationInfo.engineName, "Refract", XR_MAX_ENGINE_NAME_SIZE - 1);
         instanceInfo.applicationInfo.engineVersion = 1;
-#if defined(_WIN32)
-        instanceInfo.applicationInfo.apiVersion = XR_MAKE_VERSION(1, 0, 0);
-#else
-        instanceInfo.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
-#endif
+        instanceInfo.applicationInfo.apiVersion = XR_MAKE_VERSION(1, 0, 0);  // SteamVR refuses a newer one.
         instanceInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         instanceInfo.enabledExtensionNames = extensions.data();
 
@@ -692,9 +687,18 @@ public:
 #if defined(_WIN32)
         return mirror_.open(d3dDevice_.get(), gameName);
 #else
-        // No mirror window on Linux. SIGINT/SIGTERM (scripts/waydroid.sh stopping the session) end the frame
-        // loop instead, between frames, as closing the window does on Windows.
+        // SIGINT/SIGTERM (scripts/waydroid.sh stopping the session) end the frame loop between frames, as closing the
+        // preview window does (REFRACT_PREVIEW=0: no window).
+#if defined(REFRACT_PREVIEW_WINDOW)
+        if (const char* wanted = std::getenv("REFRACT_PREVIEW"); renderer_ && (!wanted || std::strcmp(wanted, "0") != 0)) {
+            if (!preview_.open(gameName, renderer_->binding().instance))
+                std::fprintf(stderr, "Refract OpenXR: no preview window; continuing without one\n");
+            else if (!(previewAttached_ = renderer_->preview_attach(preview_.take_surface())))
+                std::fprintf(stderr, "Refract OpenXR: the preview window stays blank (keys still work)\n");
+        }
+#else
         (void)gameName;
+#endif
         struct sigaction action{};
         action.sa_handler = [](int) { stopRequested_ = 1; };
         sigemptyset(&action.sa_mask);
@@ -706,6 +710,8 @@ public:
     bool pump_mirror() {
 #if defined(_WIN32)
         return mirror_.pump();
+#elif defined(REFRACT_PREVIEW_WINDOW)
+        return !stopRequested_ && !preview_.closed();
 #else
         return !stopRequested_;
 #endif
@@ -913,10 +919,13 @@ public:
             // Until the game's first frame there is nothing to submit: the runtime shows its own void.
             if (renderer_ && projectionSwapchain_ != XR_NULL_HANDLE) {
                 pick_image(static_cast<int64_t>(sequence));
-                if (update_projection_layer(frameDisplayTime, projectionViews, projectionLayer, quadLayers, layerCount)) {
+                if (update_projection_layer(frameDisplayTime, projectionViews, projectionLayer, quadLayers, layerCount, mixedProjection)) {
                     if (layerCount) {
+                        const uint32_t offset = mixedProjection ? 1 : 0;
+                        if (mixedProjection) layers[0] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&projectionLayer);
                         for (uint32_t i = 0; i < layerCount; ++i)
-                            layers[i] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&quadLayers[i]);
+                            layers[offset + i] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&quadLayers[i]);
+                        layerCount += offset;
                     } else {
                         layers[0] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&projectionLayer);
                         layerCount = 1;
@@ -925,6 +934,9 @@ public:
                     layerCount = 0;
                 }
             }
+#if defined(REFRACT_PREVIEW_WINDOW)
+            if (preview_.take_stats_toggle()) toggle_stats();
+#endif
             XrCompositionLayerQuad statsQuad{XR_TYPE_COMPOSITION_LAYER_QUAD};
             if (renderer_ && place_stats_panel(statsQuad)) layers[layerCount++] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&statsQuad);
 #endif
@@ -985,6 +997,21 @@ public:
         frame.monotonic_time_ns = monotonic_time_ns();
         return frame;
     }
+
+#if !defined(_WIN32)
+    // Image thread: the renderer exists once the session is up; the Android runtime may send its first frame sooner.
+    bool wait_for_gpu_share()
+    {
+        for (int i = 0; i < 400 && !gpuShareReady_.load(std::memory_order_acquire); ++i)
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        if (gpuShareReady_.load(std::memory_order_acquire)) return true;
+        static std::atomic<bool> reported{false};
+        if (!reported.exchange(true))
+            std::fprintf(stderr, "Refract GPU: the host Vulkan device cannot import shared textures, so GPU frames are refused; "
+                "play with REFRACT_GPU_SHARE=0 for pixel transfer\n");
+        return false;
+    }
+#endif
 
     // Receive on the image thread, independently of the OpenXR compositor clock.
     // The same lock protects cross-device cache ownership and its render poses.
@@ -1077,8 +1104,39 @@ public:
             return true;
         }
 #else
-        if ((header.version == refract::protocol::kWindowsGpuFrameVersion || header.version == refract::protocol::kQuadGpuFrameVersion ||
-             header.version == refract::protocol::kCompositeGpuFrameVersion)) return false;
+        if (header.version == refract::protocol::kWindowsGpuFrameVersion || header.version == refract::protocol::kCompositeGpuFrameVersion) {
+            // The eye images (or atlas pair) stay on the GPU: this carries only the name of the textures Refract's GPU
+            // layer shares. They go into a cache slot here and the game may then reuse them; the frame loop blits from
+            // the slot. Other GPU frame kinds (a mixed batch, quad frames) are not supported on Linux: the Android
+            // runtime sends these two with debug.refract.composite=1, which scripts/waydroid.sh sets.
+            const bool composite = header.version == refract::protocol::kCompositeGpuFrameVersion;
+            if (!wait_for_gpu_share()) return false;
+            if (pixels.size() < sizeof(refract::protocol::WindowsGpuFrame) || (!composite && pixels.size() != sizeof(refract::protocol::WindowsGpuFrame))) return false;
+            if (composite) {
+                refract::protocol::CompositeHeader table{};
+                std::memcpy(&table, pixels.data() + sizeof(refract::protocol::WindowsGpuFrame), sizeof(table));
+                if (table.scene_width > projectionWidth_ || table.scene_height > projectionHeight_) return false;
+                if (!table.scene_width && !table.quad_count) return true;  // Nothing to show.
+            } else if (header.width > projectionWidth_ || header.height > projectionHeight_) {
+                return false;  // Cropping here would change the angular scale.
+            }
+            refract::protocol::WindowsGpuFrame gpu{};
+            std::memcpy(&gpu, pixels.data(), sizeof(gpu));
+            const int slot = imageFrame_->free_slot(VulkanRenderer::kSlots);
+            if (slot < 0 || !renderer_->receive_gpu_pair(gpu.session, header.width, header.height, static_cast<VkFormat>(projectionFormat_), slot)) {
+                imageFrame_->invalidate();  // The slot may be half written.
+                return false;
+            }
+            if (!reportedGpuImage_) {
+                std::fprintf(stderr, "Refract GPU: shared textures active; no pixel TCP transfer\n");
+                reportedGpuImage_ = true;
+            }
+            const int64_t poseFrame = pose_frame_of_tag(header.reserved);
+            record_arrival(poseFrame);
+            imageFrame_->store(header, std::move(pixels), projection, slot, poseFrame);
+            return true;
+        }
+        if (header.version == refract::protocol::kQuadGpuFrameVersion || refract::protocol::mixed_gpu_version(header.version)) return false;
 #endif
         record_arrival(-1);
         imageFrame_->store(header, std::move(pixels), projection);
@@ -1297,7 +1355,9 @@ public:
 #else
     bool create_stats_swapchain()
     {
-        constexpr uint32_t kWidth = 1200, kHeight = 620, kRows = 10;
+        // Near the ~500 pixels the panel covers in a headset: the runtime samples it without mipmaps, and shrinking
+        // 1200 pixels that far breaks up the strokes of unhinted text.
+        constexpr uint32_t kWidth = 720, kHeight = 372, kRows = 10;
         if (!statsOverlay_.prepare(kWidth, kHeight, kRows)) return false;
         uint32_t count = 0;
         if (enumerateSwapchainFormats_(session_, 0, &count, nullptr) != XR_SUCCESS || !count) return false;
@@ -1616,6 +1676,8 @@ public:
         // The image no longer holds an Android frame, so the next one must upload again.
         uploadedAndroidSequenceByImage_[imageIndex] = UINT64_MAX;
         uploadedProjectionByImage_[imageIndex] = {};
+        uploadedAtlasByImage_[imageIndex] = {};
+        uploadedSlotByImage_[imageIndex] = -1;
         uploadedExtentByImage_[imageIndex] = {static_cast<int32_t>(projectionWidth_), static_cast<int32_t>(projectionHeight_)};
         return copied;
     }
@@ -2576,23 +2638,27 @@ private:
         uploadedAndroidSequenceByImage_.assign(imageCount, UINT64_MAX);
         uploadedProjectionByImage_.assign(imageCount, {});
         uploadedExtentByImage_.assign(imageCount, {static_cast<int32_t>(projectionWidth_), static_cast<int32_t>(projectionHeight_)});
+        uploadedAtlasByImage_.assign(imageCount, {});
+        uploadedSlotByImage_.assign(imageCount, -1);
         std::fprintf(stderr, "Refract OpenXR: projection swapchain ready %ux%u images=%u format=%lld\n",
             projectionWidth_, projectionHeight_, imageCount, static_cast<long long>(projectionFormat_));
+        gpuShareReady_.store(renderer_ && renderer_->gpu_share_ready(), std::memory_order_release);
         return true;
     }
 
-    // As fill_panel on Windows: a panel (one slice of the projection image) goes to a swapchain of its own,
-    // grown in steps of 256 pixels because creating one stalls the runtime.
-    bool fill_panel(uint32_t index, VkImage source, uint32_t slice, XrExtent2Di extent)
+    // As fill_panel on Windows: a panel goes to a swapchain of its own, grown in steps of 256 pixels because creating
+    // one stalls the runtime. `copyInto` puts the panel's pixels in the top-left of the acquired swapchain image.
+    template <typename CopyInto>
+    bool fill_panel_with(uint32_t index, XrExtent2Di extent, CopyInto copyInto)
     {
         auto& panel = panelSwapchains_[index];
         const auto width = static_cast<uint32_t>(extent.width), height = static_cast<uint32_t>(extent.height);
-        if (!width || !height || width > projectionWidth_ || height > projectionHeight_) return false;
+        if (!width || !height) return false;
         if (panel.handle == XR_NULL_HANDLE || panel.width < width || panel.height < height) {
-            const auto grow = [](uint32_t current, uint32_t needed, uint32_t limit) {
-                return (std::max)(current, (std::min)((needed + 255) / 256 * 256, limit));
+            const auto grow = [](uint32_t current, uint32_t needed) {
+                return (std::max)(current, (needed + 255) / 256 * 256);
             };
-            const uint32_t newWidth = grow(panel.width, width, projectionWidth_), newHeight = grow(panel.height, height, projectionHeight_);
+            const uint32_t newWidth = grow(panel.width, width), newHeight = grow(panel.height, height);
             if (panel.handle != XR_NULL_HANDLE) {
                 renderer_->wait_idle();
                 destroySwapchain_(panel.handle);
@@ -2628,10 +2694,89 @@ private:
         if (acquireSwapchainImage_(panel.handle, &acquireInfo, &image) != XR_SUCCESS || image >= panel.images.size()) return false;
         XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
         waitInfo.timeout = XR_INFINITE_DURATION;
-        const bool copied = waitSwapchainImage_(panel.handle, &waitInfo) == XR_SUCCESS &&
-            renderer_->copy(source, slice, panel.images[image].image, width, height);
+        const bool copied = waitSwapchainImage_(panel.handle, &waitInfo) == XR_SUCCESS && copyInto(panel.images[image].image);
         XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
         return releaseSwapchainImage_(panel.handle, &releaseInfo) == XR_SUCCESS && copied;
+    }
+
+    // A panel that is one slice of the projection image (pixel frames: a quad frame's panels are its layers).
+    bool fill_panel(uint32_t index, VkImage source, uint32_t slice, XrExtent2Di extent)
+    {
+        if (extent.width > static_cast<int32_t>(projectionWidth_) || extent.height > static_cast<int32_t>(projectionHeight_)) return false;
+        return fill_panel_with(index, extent, [&](VkImage dest) {
+            return renderer_->copy(source, slice, dest, static_cast<uint32_t>(extent.width), static_cast<uint32_t>(extent.height));
+        });
+    }
+
+    // A panel of an atlas frame: its rectangle of the cache slot's texture, flipped when the game stored it bottom-up.
+    bool fill_panel_from_atlas(uint32_t index, int slot, const refract::protocol::CompositeQuad& entry)
+    {
+        const XrExtent2Di extent{static_cast<int32_t>(entry.width), static_cast<int32_t>(entry.height)};
+        return fill_panel_with(index, extent, [&](VkImage dest) {
+            VulkanRenderer::BlitRegion region;
+            region.srcLayer = entry.texture & 1;
+            region.srcX = static_cast<int32_t>(entry.x);
+            region.srcY = static_cast<int32_t>(entry.y);
+            region.width = entry.width;
+            region.height = entry.height;
+            region.flip = (entry.texture & refract::protocol::kCompositeQuadFlipped) != 0;
+            return renderer_->blit_cached(slot, dest, 1, &region, 1);
+        });
+    }
+
+    // A GPU frame: the scene's eyes (or, for an atlas frame, the scene's rectangle of each atlas texture) blitted from the
+    // cache slot into the projection image's two layers, top-down as the game rendered them. An atlas frame's panels
+    // are blitted into their own swapchains by update_projection_layer, from the same slot, which stays reserved
+    // while this frame is the one on screen.
+    bool upload_gpu_frame(VkImage image, uint32_t imageIndex, const HostImageFrame::Entry& shown)
+    {
+        const refract::protocol::ImageFrameHeader& header = shown.header;
+        const refract::protocol::ImageProjection& projection = shown.projection;
+        if (shown.slot < 0 || shown.pixels == nullptr) return false;
+        const bool composite = header.version == refract::protocol::kCompositeGpuFrameVersion;
+        refract::protocol::CompositeHeader table{};
+        if (composite) {
+            if (shown.pixels->size() < sizeof(refract::protocol::WindowsGpuFrame) + sizeof(table)) return false;
+            std::memcpy(&table, shown.pixels->data() + sizeof(refract::protocol::WindowsGpuFrame), sizeof(table));
+            if (table.quad_count > refract::protocol::kMaxCompositeQuads ||
+                shown.pixels->size() != sizeof(refract::protocol::WindowsGpuFrame) + sizeof(table) +
+                    table.quad_count * sizeof(refract::protocol::CompositeQuad)) return false;
+        }
+        const uint32_t sceneWidth = composite ? table.scene_width : header.width;
+        const uint32_t sceneHeight = composite ? table.scene_height : header.height;
+        const bool scene = sceneWidth != 0;
+        UploadedAtlas atlas;
+        if (composite) {
+            atlas.active = true;
+            atlas.slot = shown.slot;
+            atlas.count = table.quad_count;
+            for (uint32_t i = 0; i < table.quad_count; ++i) {
+                auto& panel = atlas.panels[i];
+                std::memcpy(&panel.entry, shown.pixels->data() + sizeof(refract::protocol::WindowsGpuFrame) + sizeof(table) +
+                    i * sizeof(refract::protocol::CompositeQuad), sizeof(panel.entry));
+                panel.extent = {static_cast<int32_t>(panel.entry.width), static_cast<int32_t>(panel.entry.height)};
+            }
+        }
+        // The slot is also reused for a newer frame once this one is replaced, so the same sequence from the same slot is the same pixels.
+        if (scene && !(header.sequence == uploadedAndroidSequenceByImage_[imageIndex] && shown.slot == uploadedSlotByImage_[imageIndex])) {
+            const std::array<VulkanRenderer::BlitRegion, 2> regions{{
+                {0, 0, 0, sceneWidth, sceneHeight, 0, 0, 0, false},
+                {1, 0, 0, sceneWidth, sceneHeight, 1, 0, 0, false}}};
+            if (!renderer_->blit_cached(shown.slot, image, 2, regions.data(), regions.size())) return false;
+        }
+        uploadedAtlasByImage_[imageIndex] = atlas;
+        uploadedSlotByImage_[imageIndex] = shown.slot;
+        uploadedAndroidSequenceByImage_[imageIndex] = header.sequence;
+        // No scene: no projection layer, only the panels (update_projection_layer checks view_count).
+        uploadedProjectionByImage_[imageIndex] = scene ? projection : refract::protocol::ImageProjection{};
+        uploadedExtentByImage_[imageIndex] = scene ? XrExtent2Di{static_cast<int32_t>(sceneWidth), static_cast<int32_t>(sceneHeight)}
+                                                   : XrExtent2Di{static_cast<int32_t>(projectionWidth_), static_cast<int32_t>(projectionHeight_)};
+        if (!reportedAndroidImageSubmit_) {
+            std::fprintf(stderr, "Refract OpenXR: submitting shared GPU frames to the runtime (%ux%u%s)\n", header.width, header.height,
+                composite ? ", atlas" : "");
+            reportedAndroidImageSubmit_ = true;
+        }
+        return true;
     }
 
     // The newest Android frame into a projection image: both layers (a quad frame's panels are its layers).
@@ -2643,6 +2788,10 @@ private:
         const refract::protocol::ImageFrameHeader& header = shown.header;
         const refract::protocol::ImageProjection& projection = shown.projection;
         const auto& pixels = shown.pixels;
+        if (header.version == refract::protocol::kWindowsGpuFrameVersion || header.version == refract::protocol::kCompositeGpuFrameVersion)
+            return upload_gpu_frame(image, imageIndex, shown);
+        uploadedAtlasByImage_[imageIndex] = {};
+        uploadedSlotByImage_[imageIndex] = -1;
         if (header.width == 0 || header.height == 0 || header.layers == 0 || header.bytes_per_pixel != 4 || pixels == nullptr ||
             pixels->size() < static_cast<uint64_t>(header.width) * header.height * header.layers * 4) return false;
         if (header.sequence == uploadedAndroidSequenceByImage_[imageIndex]) return true;  // Already in this image.
@@ -2685,18 +2834,64 @@ private:
         return true;
     }
 
+    // The preview window, as MirrorWindow on Windows: the left eye of the image the headset gets (a panel-only frame's
+    // first panel, before the game's first frame the loading card), copied on the GPU once per new frame or resize.
+    void feed_preview(uint32_t imageIndex, bool uploaded, bool loading)
+    {
+#if defined(REFRACT_PREVIEW_WINDOW)
+        if (!previewAttached_ || (!uploaded && !loading)) return;
+        uint32_t windowWidth = 0, windowHeight = 0;
+        preview_.size(&windowWidth, &windowHeight);
+        if (!windowWidth || !windowHeight) return;  // Minimized (IsIconic on Windows).
+        const uint64_t sequence = uploaded ? uploadedAndroidSequenceByImage_[imageIndex] : kLoadingPreviewSequence + loadingPreviewFrame_++;
+        const bool dirty = preview_.take_dirty();
+        if (sequence == previewSequence_ && !dirty) return;
+        const VkImage image = projectionImages_[imageIndex].image;
+        const auto format = static_cast<VkFormat>(projectionFormat_);
+        bool presented = false;
+        if (loading) {
+            presented = renderer_->preview_present_image(image, format, 0, loading_.width(), loading_.height(), windowWidth, windowHeight);
+        } else if (uploadedProjectionByImage_[imageIndex].view_count == 2 || !uploadedAtlasByImage_[imageIndex].active) {
+            // The scene's left eye, or a pixel frame's first panel (its layer 0).
+            const XrExtent2Di& extent = uploadedExtentByImage_[imageIndex];
+            presented = renderer_->preview_present_image(image, format, 0, static_cast<uint32_t>(extent.width), static_cast<uint32_t>(extent.height),
+                windowWidth, windowHeight);
+        } else if (uploadedAtlasByImage_[imageIndex].count) {
+            const UploadedAtlas& atlas = uploadedAtlasByImage_[imageIndex];
+            const auto& entry = atlas.panels[0].entry;
+            VulkanRenderer::BlitRegion region;
+            region.srcLayer = entry.texture & 1;
+            region.srcX = static_cast<int32_t>(entry.x);
+            region.srcY = static_cast<int32_t>(entry.y);
+            region.width = entry.width;
+            region.height = entry.height;
+            region.flip = (entry.texture & refract::protocol::kCompositeQuadFlipped) != 0;
+            presented = renderer_->preview_present_cached(atlas.slot, region, windowWidth, windowHeight);
+        }
+        // Skipped (no free window image yet): tried again with the next frame, as a DXGI_ERROR_WAS_STILL_DRAWING present.
+        if (presented) previewSequence_ = sequence;
+        else if (dirty) preview_.mark_dirty();
+#else
+        (void)imageIndex;
+        (void)uploaded;
+        (void)loading;
+#endif
+    }
+
     // Fills the frame's layers: the game's quad panels if it sent those (quadCount of them), else one
-    // stereo projection layer (quadCount 0). False: nothing to show yet.
+    // stereo projection layer (quadCount 0). An atlas frame can have both: the scene's projection layer under its
+    // panels (mixedProjection). False: nothing to show yet.
     bool update_projection_layer(
         XrTime displayTime,
         std::array<XrCompositionLayerProjectionView, 2>& projectionViews,
         XrCompositionLayerProjection& projectionLayer,
         std::array<XrCompositionLayerQuad, refract::protocol::kMaxCompositionLayers>& quadLayers,
-        uint32_t& quadCount)
+        uint32_t& quadCount, bool& mixedProjection)
     {
         static refract::protocol::PerfStats stats("host-projection");
         refract::protocol::PerfScope scope(stats);
         quadCount = 0;
+        mixedProjection = false;
         uint32_t imageIndex = 0;
         XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
         if (acquireSwapchainImage_(projectionSwapchain_, &acquireInfo, &imageIndex) != XR_SUCCESS || imageIndex >= projectionImages_.size())
@@ -2709,9 +2904,17 @@ private:
             uploaded = upload_android_frame(image, imageIndex);
             if (uploaded) loadingActive_ = false;
             else loading = draw_loading_card(image, imageIndex);
-            quadCount = uploaded ? uploadedProjectionByImage_[imageIndex].quad_count() : 0;
-            for (uint32_t i = 0; i < quadCount && panelsReady; ++i)
-                panelsReady = fill_panel(i, image, i, uploadedExtentByImage_[imageIndex]);
+            feed_preview(imageIndex, uploaded, loading);
+            const UploadedAtlas& atlas = uploadedAtlasByImage_[imageIndex];
+            if (uploaded && atlas.active) {
+                quadCount = atlas.count;
+                for (uint32_t i = 0; i < quadCount && panelsReady; ++i)
+                    panelsReady = fill_panel_from_atlas(i, atlas.slot, atlas.panels[i].entry);
+            } else {
+                quadCount = uploaded ? uploadedProjectionByImage_[imageIndex].quad_count() : 0;
+                for (uint32_t i = 0; i < quadCount && panelsReady; ++i)
+                    panelsReady = fill_panel(i, image, i, uploadedExtentByImage_[imageIndex]);
+            }
         }
         XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
         if (releaseSwapchainImage_(projectionSwapchain_, &releaseInfo) != XR_SUCCESS) return false;
@@ -2722,6 +2925,7 @@ private:
         if (!uploaded) return false;
 
         const auto& composition = uploadedProjectionByImage_[imageIndex];
+        const UploadedAtlas& atlas = uploadedAtlasByImage_[imageIndex];
         if (uploadedAndroidSequenceByImage_[imageIndex] != statsShownSequence_) {
             statsShownSequence_ = uploadedAndroidSequenceByImage_[imageIndex];
             ++statsNewFrames_;
@@ -2730,7 +2934,7 @@ private:
         if (quadCount) {
             if (!panelsReady) return false;
             for (uint32_t i = 0; i < quadCount; ++i) {
-                const auto& source = composition.quads[i];
+                const auto& source = atlas.active ? atlas.panels[i].entry.quad : composition.quads[i];
                 auto& quad = quadLayers[i];
                 quad = {XR_TYPE_COMPOSITION_LAYER_QUAD};
                 quad.space = localSpace_;
@@ -2742,7 +2946,9 @@ private:
                 quad.subImage.swapchain = panelSwapchains_[i].handle;
                 quad.subImage.imageRect.extent = panelSwapchains_[i].used;
             }
-            return true;
+            // Panels over a scene: the scene's projection layer goes under them.
+            if (!(atlas.active && composition.view_count == 2)) return true;
+            mixedProjection = true;
         }
 
         XrViewLocateInfo locateInfo{XR_TYPE_VIEW_LOCATE_INFO};
@@ -3111,6 +3317,8 @@ private:
         menuShortcut_.apply(frame.controllers, inputNow);
 #if defined(_WIN32)
         if (mirror_.menu_key_held()) frame.controllers[0].buttons |= refract::protocol::MenuClick;
+#elif defined(REFRACT_PREVIEW_WINDOW)
+        if (preview_.menu_key_held()) frame.controllers[0].buttons |= refract::protocol::MenuClick;
 #endif
 
         if (locatedAny) {
@@ -3344,6 +3552,15 @@ private:
     bool reportedProjectionSubmit_ = false;
     bool reportedAndroidImageSubmit_ = false;
 #else
+#if defined(REFRACT_PREVIEW_WINDOW)
+    // Before the renderer, so it outlives it: the renderer destroys the window's surface first.
+    PreviewWindow preview_;
+    bool previewAttached_ = false;
+    uint64_t previewSequence_ = UINT64_MAX;
+    // Preview sequences for loading frames, kept apart from Android frame sequences (as kLoadingMirrorSequence).
+    static constexpr uint64_t kLoadingPreviewSequence = 1ull << 62;
+    uint64_t loadingPreviewFrame_ = 0;
+#endif
     // Linux. Destroyed after the session (members go after the destructor body), as OpenXR requires.
     std::unique_ptr<VulkanRenderer> renderer_;
     bool vulkanEnabled_ = false;  // Else a headless, tracking-only session.
@@ -3359,6 +3576,21 @@ private:
     std::vector<uint64_t> uploadedAndroidSequenceByImage_;
     std::vector<refract::protocol::ImageProjection> uploadedProjectionByImage_;
     std::vector<XrExtent2Di> uploadedExtentByImage_;
+    // Atlas frames: the panels each swapchain image's frame has, and the cache slot they are blitted from.
+    struct AtlasPanel {
+        refract::protocol::CompositeQuad entry{};
+        XrExtent2Di extent{};
+    };
+    struct UploadedAtlas {
+        bool active = false;
+        int slot = -1;
+        uint32_t count = 0;
+        std::array<AtlasPanel, refract::protocol::kMaxCompositeQuads> panels{};
+    };
+    std::vector<UploadedAtlas> uploadedAtlasByImage_;
+    std::vector<int> uploadedSlotByImage_;  // The cache slot a GPU frame's scene was blitted from.
+    std::atomic<bool> gpuShareReady_{false};
+    bool reportedGpuImage_ = false;
     std::vector<uint8_t> uploadBuffer_;
     int64_t projectionFormat_ = 0;
     bool swapRedBlue_ = false;  // The swapchain is BGRA; Android sends RGBA.
