@@ -358,6 +358,8 @@ setup_venus() {  # render node, user, user's home
 [Unit]
 Description=Venus renderer for Refract's Waydroid (Android Vulkan on the Nvidia driver)
 StartLimitIntervalSec=0
+# Only the desktop user's manager: root's (started by sudo) would replace the socket with its own and quit.
+ConditionUser=$user
 
 [Service]
 # The server does not replace a socket left behind by a previous one.
@@ -779,14 +781,32 @@ cmd_install() {
     done
 }
 
+# Whether the renderer's socket takes connections (the server only logs a client that connects and leaves).
+venus_accepts() {
+    python3 -I -c 'import socket, sys; s = socket.socket(socket.AF_UNIX); s.settimeout(2); s.connect(sys.argv[1])' \
+        "$VENUS_SOCKET_DIR/venus.sock" 2>/dev/null
+}
+
+# Android's graphics need the renderer before Waydroid starts. A running renderer whose socket no longer takes
+# connections (another user manager's copy replaced the socket, as root's did under sudo before ConditionUser) leaves
+# new apps without a GPU while Android itself keeps going: Android then restarts on a fresh renderer.
+ensure_venus() {
+    systemctl --user is-active --quiet "$VENUS_UNIT" && venus_accepts && return 0
+    if session_running; then
+        warn "the Venus renderer stopped taking connections; restarting Android on a fresh one"
+        cmd_stop  # Restarts the renderer.
+    else
+        systemctl --user restart "$VENUS_UNIT" || die "the Venus renderer did not start: journalctl --user -u $VENUS_UNIT"
+    fi
+    for _ in $(seq 20); do venus_accepts && return 0; sleep 0.25; done
+    die "the Venus renderer is not taking connections: journalctl --user -u $VENUS_UNIT"
+}
+
 # Brings Android up as play does, without a game: the renderer, the session, adb. Prints the adb address.
 cmd_start() {
     SESSION_LOGS="$ROOT/runs/waydroid-session"
     mkdir -p "$SESSION_LOGS"
-    if venus_mode; then
-        systemctl --user is-active --quiet "$VENUS_UNIT" || systemctl --user start "$VENUS_UNIT" ||
-            die "the Venus renderer did not start: journalctl --user -u $VENUS_UNIT"
-    fi
+    if venus_mode; then ensure_venus; fi
     if ! session_running; then
         say "Starting Waydroid"
         nohup waydroid session start >"$SESSION_LOGS/waydroid-session.log" 2>&1 &
@@ -868,9 +888,7 @@ cmd_play() {
 
     local gpu_share=0
     if venus_mode; then
-        # Android's graphics need the renderer before Waydroid starts.
-        systemctl --user is-active --quiet "$VENUS_UNIT" || systemctl --user start "$VENUS_UNIT" ||
-            die "the Venus renderer did not start: journalctl --user -u $VENUS_UNIT"
+        ensure_venus
         # The PC viewer and the host bridge import the eye images Refract's GPU layer shares from the renderer (as on Windows).
         [[ ${REFRACT_GPU_SHARE:-1} == 1 && -f "$GPU_LAYER_DIR/librefract_gpu_layer.so" ]] && gpu_share=1  # REFRACT_GPU_SHARE=0: pixels over TCP
     fi
