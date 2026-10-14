@@ -875,14 +875,16 @@ void draw_overlay(const Slot& slot)
         swprintf_s(line, L"Render   %u x %u per eye%ls\n", slot.width, slot.height, &slot == &g_shared.panels ? L" (UI panel)" : L"");
     text += line;
     if (android.valid) {
-        swprintf_s(line, L"Android  CPU %3.0f%% of %d cores (%.1f cores busy)\nThreads ", android.cpuPercent, android.cores,
-            android.cpuPercent * android.cores / 100.0);
+        swprintf_s(line, L"%ls CPU %3.0f%% of %d cores (%.1f cores busy)\nThreads ", android.native ? L"Native  " : L"Android ",
+            android.cpuPercent, android.cores, android.cpuPercent * android.cores / 100.0);
         text += line;
         for (size_t i = 0; i < std::min<size_t>(4, android.threads.size()); ++i) {
             swprintf_s(line, L" %hs %.0f%%", android.threads[i].name.c_str(), android.threads[i].percent);
             text += line;
         }
         text += L"\n";
+    } else if (g_app.android && g_app.android->native()) {
+        text += L"Native   waiting for the game process\n\n";
     } else {
         text += L"Android  stats unavailable (adb)\n\n";
     }
@@ -1187,6 +1189,7 @@ int main(int argc, char** argv)
 {
     int port = 38491, controlPort = 38495;
     std::string adb = R"(C:\Users\mixid\Android\Sdk\platform-tools\adb.exe)", serial = "emulator-5582", package = "com.TrassGames.Yeeps";
+    std::string nativeProcess;  // --native refract_native.exe: stats of that process instead of adb
     for (int i = 1; i + 1 < argc; ++i) {
         const std::string arg = argv[i];
         if (arg == "--port") port = std::atoi(argv[++i]);
@@ -1196,6 +1199,7 @@ int main(int argc, char** argv)
         else if (arg == "--adb") adb = argv[++i];
         else if (arg == "--serial") serial = argv[++i];
         else if (arg == "--package") package = argv[++i];
+        else if (arg == "--native") nativeProcess = argv[++i];
         else if (arg == "--title") ++i;  // Read below as UTF-16: a game name can hold any character.
         else if (arg == "--stats") g_app.overlay = std::atoi(argv[++i]) != 0;  // 0: start with the F1 overlay hidden.
     }
@@ -1219,7 +1223,7 @@ int main(int argc, char** argv)
         1000, 1040, nullptr, nullptr, wc.hInstance, nullptr);
     if (!g_app.window || !create_swapchain()) { std::fprintf(stderr, "viewer: window setup failed\n"); return 1; }
     if (!create_overlay()) std::fprintf(stderr, "viewer: overlay setup failed; no performance stats\n");
-    AndroidStats android(adb, serial, package);
+    AndroidStats android(adb, serial, package, nativeProcess);
     android.enabled = g_app.overlay;
     android.start();
     g_app.android = &android;

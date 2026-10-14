@@ -1,8 +1,11 @@
 #pragma once
 // Polls the emulator (or Waydroid) over adb about once a second: overall Android CPU use and
-// the game's busiest threads (from /proc/stat and /proc/<pid>/task/*/stat).
+// the game's busiest threads (from /proc/stat and /proc/<pid>/task/*/stat). With a native process
+// name (Refract Native, Windows only) it reads that process and its threads directly instead:
+// refract_native names each host thread after its guest thread.
 #ifdef _WIN32
 #include <windows.h>
+#include <tlhelp32.h>
 #else
 #include <sys/wait.h>
 #include <unistd.h>
@@ -26,6 +29,7 @@ struct ThreadUse {
 
 struct AndroidSnapshot {
     bool valid = false;
+    bool native = false;  // CPU use of the native runner process, not of the whole Android system
     int cores = 0;
     double cpuPercent = 0;  // Of all cores.
     std::vector<ThreadUse> threads;  // Busiest first.
@@ -33,18 +37,25 @@ struct AndroidSnapshot {
 
 class AndroidStats {
 public:
-    AndroidStats(std::string adb, std::string serial, std::string package)
-        : adb_(std::move(adb)), serial_(std::move(serial)), package_(std::move(package)) {}
+    AndroidStats(std::string adb, std::string serial, std::string package, std::string nativeProcess = {})
+        : adb_(std::move(adb)), serial_(std::move(serial)), package_(std::move(package)),
+          nativeProcess_(std::move(nativeProcess)) {}
 
     void start()
     {
         std::thread([this] {
             for (;;) {
+#ifdef _WIN32
+                if (enabled) nativeProcess_.empty() ? poll() : pollNative();
+#else
                 if (enabled) poll();
+#endif
                 std::this_thread::sleep_for(std::chrono::seconds(1));
             }
         }).detach();
     }
+
+    bool native() const { return !nativeProcess_.empty(); }
 
     AndroidSnapshot snapshot()
     {
@@ -197,7 +208,81 @@ private:
         snapshot_ = std::move(next);
     }
 
-    std::string adb_, serial_, package_;
+#ifdef _WIN32
+    static unsigned long long ticks(const FILETIME& a, const FILETIME& b)  // 100 ns units
+    {
+        return (ULARGE_INTEGER{{a.dwLowDateTime, a.dwHighDateTime}}.QuadPart) +
+            (ULARGE_INTEGER{{b.dwLowDateTime, b.dwHighDateTime}}.QuadPart);
+    }
+
+    // The newest process named nativeProcess_ (a new game session starts a new one) and its threads.
+    void pollNative()
+    {
+        const auto now = std::chrono::steady_clock::now();
+        HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS | TH32CS_SNAPTHREAD, 0);
+        if (snap == INVALID_HANDLE_VALUE) return;
+        DWORD pid = 0;
+        PROCESSENTRY32W pe{sizeof(pe)};
+        const std::wstring want(nativeProcess_.begin(), nativeProcess_.end());
+        for (BOOL ok = Process32FirstW(snap, &pe); ok; ok = Process32NextW(snap, &pe))
+            if (_wcsicmp(pe.szExeFile, want.c_str()) == 0) pid = std::max(pid, pe.th32ProcessID);
+        std::map<int, std::pair<std::string, unsigned long long>> threads;  // tid -> (name, cpu time)
+        unsigned long long total = 0;
+        HANDLE process = pid ? OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid) : nullptr;
+        if (process) {
+            FILETIME created, exited, kernel, user;
+            if (GetProcessTimes(process, &created, &exited, &kernel, &user)) total = ticks(kernel, user);
+            CloseHandle(process);
+            THREADENTRY32 te{sizeof(te)};
+            for (BOOL ok = Thread32First(snap, &te); ok; ok = Thread32Next(snap, &te)) {
+                if (te.th32OwnerProcessID != pid) continue;
+                HANDLE thread = OpenThread(THREAD_QUERY_LIMITED_INFORMATION, FALSE, te.th32ThreadID);
+                if (!thread) continue;
+                std::string name;
+                PWSTR description = nullptr;
+                if (SUCCEEDED(GetThreadDescription(thread, &description)) && description) {
+                    for (const wchar_t* c = description; *c; ++c) name += *c < 128 ? char(*c) : '?';
+                    LocalFree(description);
+                }
+                if (name.rfind("guest:", 0) == 0) name.erase(0, 6);
+                if (name.empty()) name = "tid " + std::to_string(te.th32ThreadID);
+                if (GetThreadTimes(thread, &created, &exited, &kernel, &user))
+                    threads[int(te.th32ThreadID)] = {name, ticks(kernel, user)};
+                CloseHandle(thread);
+            }
+        }
+        CloseHandle(snap);
+
+        AndroidSnapshot next;
+        next.native = true;
+        SYSTEM_INFO si;
+        GetSystemInfo(&si);
+        next.cores = int(si.dwNumberOfProcessors);
+        const double seconds = std::chrono::duration<double>(now - previousAt_).count();
+        if (pid && pid == previousPid_ && seconds > 0 && total >= previousTotal_) {
+            next.cpuPercent = double(total - previousTotal_) / 1e5 / seconds / next.cores;
+            for (const auto& [tid, thread] : threads) {
+                const auto found = previousThreads_.find(tid);
+                if (found == previousThreads_.end() || thread.second < found->second) continue;
+                const double percent = double(thread.second - found->second) / 1e5 / seconds;
+                if (percent >= 1.0) next.threads.push_back({thread.first, percent});
+            }
+            std::sort(next.threads.begin(), next.threads.end(), [](const auto& a, const auto& b) { return a.percent > b.percent; });
+            next.valid = true;
+        }
+        previousPid_ = pid;
+        previousTotal_ = total;
+        previousAt_ = now;
+        previousThreads_.clear();
+        for (const auto& [tid, thread] : threads) previousThreads_[tid] = thread.second;
+
+        std::lock_guard lock(mutex_);
+        snapshot_ = std::move(next);
+    }
+    DWORD previousPid_ = 0;
+#endif
+
+    std::string adb_, serial_, package_, nativeProcess_;
     std::mutex mutex_;
     AndroidSnapshot snapshot_;
     unsigned long long previousTotal_ = 0, previousIdle_ = 0;

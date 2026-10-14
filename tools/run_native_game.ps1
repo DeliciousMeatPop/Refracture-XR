@@ -50,7 +50,7 @@ try {
         }
         if ($inputServer.HasExited) { throw 'The PC input server could not start (log: build-windows-game\input.err).' }
         $shots = Join-Path ([Environment]::GetFolderPath('MyPictures')) 'Refract'
-        $session = Start-Process -FilePath $sessionExe -ArgumentList @('--title', $title, '--stats', '0', '--shots', "`"$shots`"") -PassThru -RedirectStandardOutput "$logs\viewer.log" -RedirectStandardError "$logs\viewer.err"
+        $session = Start-Process -FilePath $sessionExe -ArgumentList @('--title', $title, '--stats', '0', '--shots', "`"$shots`"", '--native', 'refract_native.exe') -PassThru -RedirectStandardOutput "$logs\viewer.log" -RedirectStandardError "$logs\viewer.err"
         $null = $session.Handle
         Start-Sleep -Milliseconds 800
         if ($session.HasExited) { throw 'The PC viewer could not start (log: build-windows-game\viewer.err).' }
