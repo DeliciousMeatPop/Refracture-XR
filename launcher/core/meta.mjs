@@ -21,6 +21,20 @@ export function questApp(item) {
   return platform === 'ANDROID_6DOF' || (platform === 'ANDROID' && questDevices) ||
     (!platform && questDevices && item?.latest_supported_binary?.__typename === 'AndroidBinary');
 }
+// Owned Meta entries learn their package only after a download. Look it up (and cache it on the entry) until one
+// matches `pkg`, so an APK imported by hand merges into the entry the user owns. Returns that entry, if any.
+export async function linkPackage(games, api, pkg) {
+  const known = games.find(g => g.package === pkg);
+  if (known) return known;
+  for (const game of games) {
+    if (game.source !== 'meta' || !game.owned || game.package) continue;
+    try { game.package = (await api.plan(game.id)).package; }
+    catch { continue; }  // No Quest build or Meta error: leave it unresolved and try again on the next import.
+    if (game.package === pkg) return game;
+  }
+  return null;
+}
+
 export function card(item, owned = false) {
   return { id: String(item.id), name: item.display_name || item.displayName || item.name || `Quest app ${item.id}`,
     description: item.display_long_description || item.display_short_description || '',

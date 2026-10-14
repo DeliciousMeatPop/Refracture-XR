@@ -14,7 +14,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { randomUUID, createHash } from 'node:crypto';
-import { MetaAuth, QuestStore, appId } from '../core/meta.mjs';
+import { MetaAuth, QuestStore, appId, linkPackage } from '../core/meta.mjs';
 import { downloadFile, safeName, checkSpace } from '../core/download.mjs';
 import { State } from '../core/state.mjs';
 import { Runtime, backends, run, validPackage, audioBackends, newUserId, validUserId, validEyeSize, validRenderScale } from '../core/runtime.mjs';
@@ -94,6 +94,15 @@ async function syncMeta() {
   await persist();
   refreshArtwork().catch(() => {});
   return { partial: result.partial, count: result.games.length };
+}
+
+// A Meta library entry only learns its package once downloaded, so an APK imported by hand would never match the
+// entry the user owns and the game's entitlement check would fail. While signed in, ask Meta for the package of each
+// owned game that lacks one (cached on the entry) until one matches the imported APK.
+async function linkOwnedPackage(pkg) {
+  if (!token) return;
+  await linkPackage(state.data.games, store(), pkg);
+  await persist();
 }
 
 async function downloadGame(id, binaryId, dlcId) {
@@ -185,6 +194,7 @@ const methods = {
   // The shell shows the file picker and passes the chosen path(s).
   import: file => exclusive(async () => {
     const game = await runtime.inspect(absolute(file));
+    await linkOwnedPackage(game.package);
     const existing = state.data.games.find(g => g.package === game.package);
     state.put({ ...game, id: existing?.id || game.id, source: existing?.source || game.source, downloaded: true });
     await persist(); return game.package;

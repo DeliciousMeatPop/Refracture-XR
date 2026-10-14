@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { MetaAuth, QuestStore, appId, questApp, post } from '../core/meta.mjs';
+import { MetaAuth, QuestStore, appId, questApp, post, linkPackage } from '../core/meta.mjs';
 import { safeName, allowedDownload, downloadFile } from '../core/download.mjs';
 import { State } from '../core/state.mjs';
 import { powershellArgs, validPackage } from '../core/runtime.mjs';
@@ -111,6 +111,19 @@ test('library writes serialize and interrupted jobs are recoverable', async t =>
   const dir=await temp(t), state=new State(dir);await state.load();state.put({id:'1',name:'Game'});
   const first=state.save();state.data.jobs.push({id:'job',status:'downloading'});await state.save();await first;
   const reopened=new State(dir);await reopened.load();assert.equal(reopened.data.games[0].name,'Game');assert.equal(reopened.data.jobs[0].status,'interrupted');
+});
+test('an imported APK merges into the owned Meta entry that has the same package', async () => {
+  const asked = [], api = { plan: async id => { asked.push(id); if (id === '3') throw new Error('no Quest build'); return { package: `com.example.g${id}` }; } };
+  const games = [{ id: '1', source: 'meta', owned: true }, { id: '2', source: 'meta', owned: true }, { id: '3', source: 'meta', owned: true },
+    { id: '4', source: 'meta', owned: false }, { id: 'local:x', source: 'local', package: 'com.example.x' }];
+  assert.equal(await linkPackage(games, api, 'com.example.g2'), games[1]);
+  assert.deepEqual(asked, ['1', '2']);
+  assert.equal(games[0].package, 'com.example.g1');  // Cached for later imports.
+  assert.equal(await linkPackage(games, api, 'com.example.g2'), games[1]);
+  assert.deepEqual(asked, ['1', '2']);  // Known package: no more lookups.
+  assert.equal(await linkPackage(games, api, 'com.example.nope'), null);
+  assert.deepEqual(asked, ['1', '2', '3']);  // Failed lookup skipped; unowned and already-resolved entries never asked.
+  assert.equal(games[3].package, undefined);
 });
 test('PowerShell paths and game names are literal, including quotes and substitutions', () => {
   const args=powershellArgs('C:\\project\\run.ps1',{GameName:"A 'quote' $(Get-Content secret)",GpuSharing:true});
