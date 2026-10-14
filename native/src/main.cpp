@@ -285,8 +285,17 @@ int wmain(int argc, wchar_t** wargv) {
         fs.Mount("/system/lib64/" + name, entry.path().wstring(), false);
         RN_TRACE("stub library %s", name.c_str());
     }
-    for (const auto& [g, h] : mounts)
-        fs.Mount(g, h, true);
+    for (const auto& [g, h] : mounts) {
+        // Guest paths are matched after symlinks resolve, and with an app /sdcard is a symlink to
+        // /storage/emulated/0: a mount named through /sdcard (the OBB dir) would never match.
+        std::string guest = g;
+        for (const char* alias : {"/sdcard", "/storage/self/primary"}) {
+            const size_t n = strlen(alias);
+            if (!app_dir.empty() && guest.compare(0, n, alias) == 0 && (guest.size() == n || guest[n] == '/'))
+                guest = "/storage/emulated/0" + guest.substr(n);
+        }
+        fs.Mount(guest, h, true);
+    }
     if (!app_dir.empty()) {
         const AppConfig& app = App();
         const std::filesystem::path data_dir(data);
