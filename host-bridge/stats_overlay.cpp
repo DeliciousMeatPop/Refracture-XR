@@ -19,6 +19,9 @@ namespace refract::host {
 namespace {
 constexpr float kCardOpacity = 0.78f;
 constexpr float kCardGrey = 18.0f;  // The card's colour, 0-255.
+#if !defined(_WIN32)
+constexpr int kEncodeSteps = 4096;
+#endif
 }
 
 #if !defined(_WIN32)
@@ -34,7 +37,7 @@ struct StatsOverlay::Font {
 
     bool load()
     {
-        for (const std::string& path : mono_font_candidates()) {
+        for (const std::string& path : mono_font_candidates(true)) {
             std::ifstream file(path, std::ios::binary);
             data.assign(std::istreambuf_iterator<char>(file), {});
             const int offset = data.empty() ? -1 : stbtt_GetFontOffsetForIndex(data.data(), 0);
@@ -185,14 +188,40 @@ void StatsOverlay::draw(const std::vector<Line>& lines)
         const size_t row = rowHeight > 0 ? static_cast<size_t>((std::max)(0.0f, (y - pad) / rowHeight)) : 0;
         const uint32_t color = row < count ? lines[row].color : 0xEDEDED;
         const float red = float(color >> 16 & 0xff), green = float(color >> 8 & 0xff), blue = float(color & 0xff);
+#if !defined(_WIN32)
+        // The swapchain is sRGB, so the runtime blends decoded (linear) values: the edges' partial coverage mixes in
+        // linear light, or thin strokes come out too dark and look broken. GDI's antialiasing already allows for it.
+        const auto linear = [](float value) {
+            value /= 255.0f;
+            return value <= 0.04045f ? value / 12.92f : std::pow((value + 0.055f) / 1.055f, 2.4f);
+        };
+        // Linear [0, 1] in 4096 steps to sRGB bytes (pow per pixel would cost the frame loop milliseconds).
+        static const std::vector<uint8_t> encoded = [] {
+            std::vector<uint8_t> table(kEncodeSteps + 1);
+            for (int i = 0; i <= kEncodeSteps; ++i) {
+                const float value = float(i) / kEncodeSteps;
+                table[i] = static_cast<uint8_t>(
+                    255.0f * (value <= 0.0031308f ? value * 12.92f : 1.055f * std::pow(value, 1.0f / 2.4f) - 0.055f) + 0.5f);
+            }
+            return table;
+        }();
+        const auto encode = [](float value) {
+            return encoded[static_cast<size_t>(std::clamp(value, 0.0f, 1.0f) * kEncodeSteps + 0.5f)];
+        };
+        const float textLinear[3] = {linear(red), linear(green), linear(blue)}, cardLinear = linear(kCardGrey);
+#endif
         for (uint32_t x = 0; x < width_; ++x) {
             const size_t index = static_cast<size_t>(y) * width_ + x;
             const float text = coverage(index);
             const float card = card_[index] * (1.0f - text);
             uint8_t* out = &pixels_[index * 4];
+#if defined(_WIN32)
             out[0] = static_cast<uint8_t>(kCardGrey * card + red * text + 0.5f);
             out[1] = static_cast<uint8_t>(kCardGrey * card + green * text + 0.5f);
             out[2] = static_cast<uint8_t>(kCardGrey * card + blue * text + 0.5f);
+#else
+            for (int c = 0; c < 3; ++c) out[c] = encode(cardLinear * card + textLinear[c] * text);
+#endif
             out[3] = static_cast<uint8_t>((card + text) * 255.0f + 0.5f);
         }
     }
