@@ -6,9 +6,11 @@ import { RuntimeChoice } from './runtime-choice';
 import { SetupPanel } from './setup';
 
 // First run: choose how Refract runs games, then get that runtime ready. Settings > Runtime changes it later.
+// Linux has one runtime (Waydroid), so it starts at the setup step.
 export function Welcome({ state, run, pending, notify }) {
   const [backend, setBackend] = useState(state.settings.backend || 'emulator');
-  const [step, setStep] = useState(0);
+  const linux = state.platform === 'linux';
+  const [step, setStep] = useState(linux ? 1 : 0);
   const save = (setupDone, next) => run('welcome', async () => {
     await call('settings', { ...state.settings, backend, setupDone });
     next?.();
@@ -26,9 +28,12 @@ export function Welcome({ state, run, pending, notify }) {
             {pending.has('welcome') && <Loader2 className="spin" />}Continue</button>
         </div>
       </> : <>
+        {linux && <p>Refract runs games in Waydroid. Get everything below ready, or skip and do it later in Settings.</p>}
         <SetupPanel state={state} run={run} pending={pending} notify={notify} />
         <div className="welcome-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => setStep(0)}>Back</button>
+          {linux
+            ? <button type="button" className="btn btn-ghost" disabled={pending.has('welcome')} onClick={() => save(true)}>Skip setup</button>
+            : <button type="button" className="btn btn-ghost" onClick={() => setStep(0)}>Back</button>}
           <button type="button" className="btn btn-primary" disabled={pending.has('welcome')} onClick={() => save(true)}>Finish</button>
         </div>
       </>}

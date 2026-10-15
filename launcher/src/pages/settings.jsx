@@ -22,11 +22,11 @@ export function SettingsPage({ state, run, pending, notify, connect, setPage }) 
   return <div className="page">
     <header className="page-head"><div><h1 className="page-title">Settings</h1></div></header>
     <form id="settings-form" className="settings" onSubmit={save}>
-      <section className="panel">
+      {state.platform !== 'linux' && <section className="panel">
         <h2>Runtime</h2>
         <p>Games are installed separately for each runtime.</p>
         <RuntimeChoice value={draft.backend} onChange={value => edit('backend', value)} />
-      </section>
+      </section>}
       <SetupPanel state={state} run={run} pending={pending} notify={notify} />
       <section className="panel">
         <div className="panel-row">
