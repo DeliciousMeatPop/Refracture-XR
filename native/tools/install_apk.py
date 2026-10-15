@@ -23,6 +23,21 @@ REPO = NATIVE.parent
 QUEST = REPO.parent
 
 
+def default_jdk() -> Path:
+    """The release package's jdk/ (tools/package_release.ps1), else JAVA_HOME, else the developer JDK."""
+    for jdk in (REPO / "jdk", Path(os.environ.get("JAVA_HOME", "")), Path("C:/Program Files/Java/jdk-27")):
+        if (jdk / "bin" / "javac.exe").exists():
+            return jdk
+    return REPO / "jdk"
+
+
+def default_dex2jar() -> Path:
+    for d2j in (REPO / "tools" / "dex2jar" / "d2j-dex2jar.bat", QUEST / "external" / "dex2jar" / "d2j-dex2jar.bat"):
+        if d2j.exists():
+            return d2j
+    return QUEST / "external" / "dex2jar" / "d2j-dex2jar.bat"
+
+
 def find_aapt2(sdk: Path) -> Path:
     tools = sorted((sdk / "build-tools").glob("*/aapt2.exe"), reverse=True)
     if not tools:
@@ -135,8 +150,8 @@ def main() -> int:
     ap.add_argument("apk", type=Path)
     ap.add_argument("--apps", type=Path, default=Path(os.environ.get("LOCALAPPDATA", ".")) / "Refract" / "native" / "apps")
     ap.add_argument("--sdk", type=Path, default=Path(os.environ.get("USERPROFILE", ".")) / "Android" / "Sdk")
-    ap.add_argument("--jdk", type=Path, default=Path("C:/Program Files/Java/jdk-27"))
-    ap.add_argument("--dex2jar", type=Path, default=QUEST / "external" / "dex2jar" / "d2j-dex2jar.bat")
+    ap.add_argument("--jdk", type=Path, default=default_jdk())
+    ap.add_argument("--dex2jar", type=Path, default=default_dex2jar())
     ap.add_argument("--runtime", type=Path,
                     default=REPO / "build-android-runtime-windows-arm64-v8a" / "systemdriver" / "package" / "lib" / "arm64-v8a",
                     help="Refract's ARM64 libopenxr_runtime.so + librefract_driver.so (android-runtime-apk/build_apk.ps1 -Abi arm64-v8a)")
@@ -184,11 +199,13 @@ def main() -> int:
         dexes = sorted((e for e in z.namelist() if re.match(r"^classes\d*\.dex$", e)),
                        key=lambda s: int(re.sub(r"\D", "", s) or 1))
         jars = []
+        # dex2jar runs the first java on the PATH; a PC without one (or with an old one) gets this JDK's.
+        d2j_env = {**os.environ, "PATH": str(args.jdk / "bin") + os.pathsep + os.environ.get("PATH", "")}
         for d in dexes:
             z.extract(d, tmp)
             out = tmp / (d + ".jar")
             subprocess.run([str(args.dex2jar), "-f", "-o", str(out), str(tmp / d)], check=True,
-                           capture_output=True)
+                           capture_output=True, env=d2j_env)
             jars.append(out)
         java = args.jdk / "bin" / "java.exe"
         shim = REPO / "build-native" / "java" / "refract-android.jar"

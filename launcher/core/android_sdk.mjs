@@ -144,6 +144,14 @@ export async function missingAndroid(sdk) {
   return missing;
 }
 
+// Refract Native needs only aapt2 (it reads each game's manifest), not the emulator.
+export async function installBuildTools(sdk, progress = () => {}) {
+  const item = androidPackages.find(p => p.id === 'build-tools');
+  await fs.mkdir(sdk, { recursive: true });
+  if (!await item.ready(sdk)) await extract(sdk, item, await download(sdk, item, progress), progress);
+  await fs.rm(path.join(sdk, '.refract-downloads'), { recursive: true, force: true });
+}
+
 // Everything the "Set up Android" button does. progress(text) reports each step.
 export async function installAndroid(sdk, avd, progress = () => {}) {
   await fs.mkdir(sdk, { recursive: true });

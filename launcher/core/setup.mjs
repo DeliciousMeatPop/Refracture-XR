@@ -3,7 +3,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { run, powershellArgs, guestPackages, nativeExe, nativeSysroot } from './runtime.mjs';
-import { avdHome, installAndroid, installNativeImage, missingAndroid, multicoreReady } from './android_sdk.mjs';
+import { avdHome, installAndroid, installBuildTools, installNativeImage, missingAndroid, multicoreReady } from './android_sdk.mjs';
 
 const exists = file => fs.access(file).then(() => true, () => false);
 const winget = id => ['install', '--exact', '--id', id, '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'];
@@ -111,7 +111,11 @@ export async function headsetStatus(runtime) {
 
 // What Refract Native needs instead of Android: its runner, the PC viewer, Refract's runtime libraries, Android's
 // system files (from Google's stock image), and the Java and Android build tools install_apk.py converts games with.
-const nativeJdk = 'C:/Program Files/Java/jdk-27/bin/java.exe';
+// The release package carries both (jdk/, tools/dex2jar/); a checkout uses the developer's JDK 27 and external/dex2jar.
+const nativeJdks = root => [path.join(root, 'jdk/bin/javac.exe'), process.env.JAVA_HOME && path.join(process.env.JAVA_HOME, 'bin/javac.exe'),
+  'C:/Program Files/Java/jdk-27/bin/javac.exe'].filter(Boolean);
+const nativeDex2jars = root => [path.join(root, 'tools/dex2jar/d2j-dex2jar.bat'), path.join(root, '../external/dex2jar/d2j-dex2jar.bat')];
+const anyExists = async files => (await Promise.all(files.map(exists))).some(Boolean);
 async function nativeChecks(root, sdk) {
   const parts = [
     ['Native runner', nativeExe, { action: 'native', label: 'Build Refract Native', note: 'Needs Visual Studio with C++ and CMake. Takes several minutes.' }],
@@ -128,14 +132,14 @@ async function nativeChecks(root, sdk) {
   const sysroot = nativeSysroot(root);
   const firmware = await exists(path.join(sysroot, 'system'));
   const tools = [];
-  if (!await exists(nativeJdk)) tools.push('JDK 27');
-  if (!await exists(path.join(root, '../external/dex2jar/d2j-dex2jar.bat'))) tools.push('dex2jar');
+  if (!await anyExists(nativeJdks(root))) tools.push('JDK 27');
+  if (!await anyExists(nativeDex2jars(root))) tools.push('dex2jar');
   if (!await exists(path.join(sdk, 'build-tools'))) tools.push('Android build-tools');
   return [{ id: 'native', title: 'Refract Native', ...built },
     { id: 'firmware', title: 'Android system files', ok: firmware, detail: firmware ? 'Android 14 ARM64 libraries are ready.' : 'Refract Native runs games on the Android system libraries from Google ARM64 system image.',
       ...(firmware ? {} : { fix: { action: 'sysroot', label: 'Download', note: 'Downloads about 700 MB from Google. Downloading accepts the Android SDK License Agreement (developer.android.com/studio/terms).' } }) },
     { id: 'nativetools', title: 'Game conversion tools', ok: !tools.length, detail: tools.length ? `Missing: ${tools.join(', ')}.` : 'JDK, dex2jar and Android build-tools found.',
-      ...(tools.includes('Android build-tools') ? { fix: { action: 'android', label: 'Set up Android', note: 'Downloads the Android SDK from Google. Setting up accepts the Android SDK License Agreement (developer.android.com/studio/terms).' } } : {}) }];
+      ...(tools.includes('Android build-tools') ? { fix: { action: 'buildTools', label: 'Download', note: 'Downloads Android build tools (about 60 MB) from Google. Downloading accepts the Android SDK License Agreement (developer.android.com/studio/terms).' } } : {}) }];
 }
 
 export async function checkSetup(root, settings) {
@@ -154,6 +158,8 @@ export async function fixSetup(root, settings, action, progress = () => {}) {
       await run('winget.exe', winget('Python.Python.3.13'), long); await refreshPath(); return;
     case 'android':
       await installAndroid(settings.sdk, settings.avd, progress); return;
+    case 'buildTools':
+      await installBuildTools(settings.sdk, progress); return;
     case 'hypervisor': {
       // Elevated: Windows shows its permission prompt. The feature takes effect after a restart.
       const inner = 'Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All -NoRestart | Out-Null';

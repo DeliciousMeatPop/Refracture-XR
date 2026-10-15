@@ -27,6 +27,8 @@ if (!(Test-Path $exe)) { throw 'Refract Native is not built. Open Settings > Set
 if (!$sessionExe -or !(Test-Path $sessionExe)) { throw 'The PC viewer or host bridge is not built. Open Settings > Setup and build the Refract components.' }
 if (!(Test-Path "$appDir\app.properties")) { throw 'Install the game first.' }
 if (!(Test-Path "$Sysroot\system")) { throw "Android system files not found in $Sysroot. Open Settings > Setup and download them." }
+# The release package carries its own Java runtime; refract_native.exe otherwise looks for one in JAVA_HOME or Program Files\Java.
+if (!$env:REFRACT_JAVA_HOME -and (Test-Path "$root\jdk\bin\server\jvm.dll")) { $env:REFRACT_JAVA_HOME = "$root\jdk" }
 if ([string]::IsNullOrWhiteSpace($GameName)) { $GameName = $Package }
 $logs = Join-Path $root 'build-windows-game'
 New-Item -ItemType Directory -Force -Path $logs | Out-Null
