@@ -29,7 +29,16 @@ if (!(Test-Path "$appDir\app.properties")) { throw 'Install the game first.' }
 if (!(Test-Path "$Sysroot\system")) { throw "Android system files not found in $Sysroot. Open Settings > Setup and download them." }
 # The release package carries its own Java runtime; refract_native.exe otherwise looks for one in JAVA_HOME or Program Files\Java.
 if (!$env:REFRACT_JAVA_HOME -and (Test-Path "$root\jdk\bin\server\jvm.dll")) { $env:REFRACT_JAVA_HOME = "$root\jdk" }
+# Digitalis translates ARM64 faster than Dynarmic (refract_native's own default); REFRACT_CPU=dynarmic still picks it.
+if (!$env:REFRACT_CPU) { $env:REFRACT_CPU = 'digitalis' }
 if ([string]::IsNullOrWhiteSpace($GameName)) { $GameName = $Package }
+# Games installed outside the launcher keep their OBB/asset files in Refract Native's own folder.
+$defaultObb = Join-Path $env:LOCALAPPDATA "Refract\native\obb\$Package"
+if (!$ObbDir -and (Test-Path $defaultObb)) { $ObbDir = $defaultObb }
+# Like run_windows_game.ps1: scripts\owned_games.txt lists the games the player owns.
+$ownedGamesFile = Join-Path $root 'scripts\owned_games.txt'
+if (!$Owned -and (Test-Path -LiteralPath $ownedGamesFile) -and
+    $Package -in @(Get-Content -LiteralPath $ownedGamesFile | ForEach-Object { $_.Trim() })) { $Owned = [switch]$true }
 $logs = Join-Path $root 'build-windows-game'
 New-Item -ItemType Directory -Force -Path $logs | Out-Null
 $title = '"' + [regex]::Replace([regex]::Replace($GameName, '(\\*)"', '$1$1\"'), '(\\+)$', '$1$1') + '"'
@@ -75,6 +84,8 @@ try {
     $arguments = @('--sysroot', "`"$Sysroot`"", '--app', "`"$appDir`"")
     $arguments += '--prop', "debug.refract.platform.owned.$Package=$(if ($Owned) { 1 } else { 0 })"
     if ($UserId) { $arguments += '--prop', "debug.refract.platform.user_id=$UserId" }
+    # As in run_windows_game.ps1: ASTC textures are stored as RGBA8, which overflows a 10 GB card in Batman: Arkham Shadow.
+    if ($Package -eq 'com.camouflaj.manta') { $arguments += '--prop', 'debug.refract.texture_mip_limit=1' }
     # In VR the bridge sends one pose per headset frame and the game starts its frames on them, with the runtime's field of view.
     if (!$PcViewer) { $arguments += '--prop', 'debug.refract.frame_sync=1', '--prop', 'debug.refract.hfov=' }
     if ($ObbDir) { $arguments += '--mount', "`"/sdcard/Android/obb/$Package=$ObbDir`"" }
