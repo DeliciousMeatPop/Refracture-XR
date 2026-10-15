@@ -16,19 +16,31 @@ Getting started
    (Don't run it from inside the zip.)
 2. Open Refract.exe.
    If Windows SmartScreen warns you, click "More info" > "Run anyway".
-3. Go to Settings > Setup and click each button until everything is green:
+3. Choose how Refract runs games:
+   - Refract Native (recommended): runs games directly on your PC, no emulator.
+   - Android emulator: runs games in Android; works with the most games.
+   You can switch later in Settings > Runtime.
+4. Click each button in the setup list until everything is green. With Refract Native:
+   - Install Python
+   - Download the Android system files (about 700 MB from Google, once)
+   - Download the Android build tools (about 60 MB, once)
+   With the Android emulator:
    - Install Python
    - Set up Android (downloads about 2.4 GB from Google, once)
    - Turn on Windows Hypervisor Platform, if asked (then restart Windows)
-4. Click "Connect Meta" at the bottom left and sign in to see the Quest games you own.
-5. Open a game, Download it, Install it, then:
+5. Click "Connect Meta" at the bottom left and sign in to see the Quest games you own.
+6. Open a game, Download it, Install it, then:
    - Play in VR: connect your Quest with Quest Link or Air Link (or start SteamVR) first.
    - Play on PC: the game opens in a window. Hold the right mouse button to look around,
      WASD to walk, left click = trigger. An Xbox controller works like Quest controllers.
      The full list of controls is on each game's page.
 
-The first time you play, Android takes a minute or two to start.
+With the emulator, Android takes a minute or two to start the first time you play.
 Closing the game window (or pressing Stop) saves and closes the game.
+
+Updates
+Refract checks for a new version each time it starts and asks before updating.
+Updating keeps your games, settings and Meta sign-in.
 
 If something goes wrong
 - The error message says what to do in most cases.

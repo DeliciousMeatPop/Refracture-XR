@@ -1,7 +1,7 @@
 param(
     # Where the Refract-<version>-win64 folder and zip go.
     [string]$Out = "$PSScriptRoot\..\dist",
-    # Use the launcher executable already in launcher\src-tauri\target\release.
+    # Use the launcher executable already in build-launcher-package\release.
     [switch]$SkipBuild
 )
 # Builds a Refract package another Windows PC can run: unzip it and start Refract.exe. It carries the launcher,
@@ -32,8 +32,10 @@ if (!$SkipBuild) {
     Write-Host 'Building the launcher'
     Push-Location "$root\launcher"
     $previous = $ErrorActionPreference; $ErrorActionPreference = 'Continue'  # Tauri reports progress on stderr.
+    # Its own target folder, so a launcher left running from launcher\src-tauri\target doesn't lock the build output.
+    $env:CARGO_TARGET_DIR = "$root\build-launcher-package"
     try { & npm.cmd run tauri -- build --no-bundle; if ($LASTEXITCODE) { throw 'The launcher build failed.' } }
-    finally { $ErrorActionPreference = $previous; Pop-Location }
+    finally { $ErrorActionPreference = $previous; Remove-Item Env:CARGO_TARGET_DIR; Pop-Location }
 }
 
 Write-Host "Staging $stage"
@@ -47,9 +49,10 @@ function Add([string]$Source, [string]$Target = $Source) {
     Copy-Item -Recurse $from $to
 }
 
-Add 'launcher\src-tauri\target\release\refract-launcher.exe' 'Refract.exe'
+Add 'build-launcher-package\release\refract-launcher.exe' 'Refract.exe'
 Get-ChildItem "$root\launcher\backend\*.mjs", "$root\launcher\core\*.mjs" | ForEach-Object { Add $_.FullName.Substring($root.Length + 1) }
 Add 'launcher\inspect_apk.py'
+Add 'launcher\package.json'  # The backend reads its version from it for update checks.
 foreach ($file in 'run_windows_game.ps1', 'windows_android_emulator.ps1', 'p_core_affinity.ps1', 'unreal_memory_policy.py',
                   'android_runtime_policy.py', 'android_app_label.py', 'steamvr_app_identity.py') { Add "tools\$file" }
 foreach ($file in 'translator.ps1', 'pose_input_server.py', 'owned_games.example.txt') { Add "scripts\$file" }
@@ -61,6 +64,20 @@ Add 'build-android-runtime-windows-arm64-v8a\refract-openxr-runtime-debug.apk'
 Add 'build-android-runtime-windows-arm64-v8a\refract-systemdriver-debug.apk'
 Add 'build-platform-sdk\refract-platform-debug.apk'
 foreach ($item in 'system', 'NOTICE', 'README.md', 'MANIFEST.txt', 'SHA256SUMS') { Add "prebuilts\digitalis\$item" }
+# Refract Native: the runner and its guest launcher and Android framework shim, Refract's ARM64 runtime libraries,
+# and what native\tools\install_apk.py converts games with (the Java sources it compiles into each game).
+Add 'build-native\refract_native.exe'
+Add 'build-native\guest'
+Add 'build-native\java\refract-android.jar'
+Add 'build-android-runtime-windows-arm64-v8a\systemdriver\package\lib\arm64-v8a\libopenxr_runtime.so'
+Add 'build-android-runtime-windows-arm64-v8a\systemdriver\package\lib\arm64-v8a\librefract_driver.so'
+Add 'build-platform-sdk\package\lib\arm64-v8a\librefract_ovrplatform.so'
+foreach ($file in 'install_apk.py', 'make_sysroot.py') { Add "native\tools\$file" }
+Add 'native\java\tools\ShimBuilder.java'
+Add 'native\java\tools\lib'
+Add 'android-runtime-apk\systemdriver\src'
+Add 'platform-sdk\apk\src'
+Add 'tools\run_native_game.ps1'
 Add 'LICENSE'
 Add 'CREDITS.md'
 
@@ -81,7 +98,9 @@ Invoke-WebRequest "https://raw.githubusercontent.com/nodejs/node/$nodeVersion/LI
 # one, Meta Horizon Link does not.
 $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
 $crt = Get-ChildItem "$vs\VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT" -Directory | Sort-Object FullName | Select-Object -Last 1
-foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') { Copy-Item (Join-Path $crt.FullName $dll) "$stage\build-windows-nvidia\host-bridge\" }
+foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+    foreach ($dir in 'build-windows-nvidia\host-bridge', 'build-native') { Copy-Item (Join-Path $crt.FullName $dll) "$stage\$dir\" }
+}
 $loaderZip = Get-Pinned 'https://github.com/KhronosGroup/OpenXR-SDK-Source/releases/download/release-1.1.63/openxr_loader_windows-1.1.63.zip' `
     'openxr_loader_windows-1.1.63.zip' '01C631AEABBFE0879540F77EF833416C532A20746285B494630160C23588B771'
 $loader = Join-Path $cache 'openxr_loader'
@@ -89,6 +108,26 @@ if (Test-Path $loader) { Remove-Item -Recurse -Force $loader }
 Expand-Archive $loaderZip $loader
 Copy-Item "$loader\x64\bin\openxr_loader.dll" "$stage\build-windows-nvidia\host-bridge\"
 Copy-Item "$loader\share\doc\openxr\LICENSE" "$stage\build-windows-nvidia\host-bridge\openxr_loader.LICENSE.txt"
+
+# Refract Native runs games' Java code in a JVM (refract_native.exe loads jvm.dll) and install_apk.py compiles and
+# converts with javac, java and dex2jar. The package carries a Temurin 27 runtime trimmed to the modules those need
+# (Android apps' java.* APIs, javac, the source launcher) and dex2jar.
+$jdkZip = Get-Pinned 'https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jdk_x64_windows_hotspot_27_35.zip' `
+    'OpenJDK27U-jdk_x64_windows_hotspot_27_35.zip' '2031C9C5C624737ED29A0624CAAF5BCC25E74235834C28B4BFA88F7BA7A40E4A'
+$temurin = Join-Path $cache 'temurin27'
+if (!(Test-Path "$temurin\jdk-27+35\bin\jlink.exe")) {
+    if (Test-Path $temurin) { Remove-Item -Recurse -Force $temurin }
+    Expand-Archive $jdkZip $temurin
+}
+$modules = 'java.base,java.compiler,java.logging,java.management,java.naming,java.net.http,java.prefs,java.scripting,java.security.jgss,' +
+    'java.sql,java.xml,java.xml.crypto,jdk.charsets,jdk.compiler,jdk.crypto.cryptoki,jdk.localedata,jdk.management,jdk.net,jdk.unsupported,jdk.zipfs'
+& "$temurin\jdk-27+35\bin\jlink.exe" --add-modules $modules --output "$stage\jdk" --strip-debug --no-man-pages --no-header-files --compress zip-6
+if ($LASTEXITCODE) { throw 'jlink failed.' }
+foreach ($exe in 'java.exe', 'javac.exe', 'server\jvm.dll') { if (!(Test-Path "$stage\jdk\bin\$exe")) { throw "The Java runtime has no bin\$exe." } }
+$dex2jar = Join-Path $root '..\external\dex2jar'
+if (!(Test-Path "$dex2jar\d2j-dex2jar.bat")) { throw "dex2jar not found in $dex2jar." }
+New-Item -ItemType Directory -Force "$stage\tools\dex2jar" | Out-Null
+Copy-Item "$dex2jar\d2j-dex2jar.bat", "$dex2jar\d2j_invoke.bat", "$dex2jar\LICENSE.txt", "$dex2jar\NOTICE.txt", "$dex2jar\lib" "$stage\tools\dex2jar\" -Recurse
 
 Copy-Item "$PSScriptRoot\package_readme.txt" "$stage\README.txt"
 
