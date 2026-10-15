@@ -27,6 +27,13 @@ Waydroid translates ARM64 games with Digitalis, as the Windows emulator does, fr
 `prebuilts/digitalis-qpr2`, which is built for this image's Android version. `setup --translator ndk`
 uses the image's own `ndk_translation` instead.
 
+With Digitalis, `setup` also sets `berberis.gearup_min_insns=1`. Digitalis normally keeps hot code
+regions shorter than 20 instructions on its fast first-pass tier, and Unity games consist mostly of
+such regions. With the property set, every hot region moves to the optimizing tier. On Windows
+(`refract_native`) this took Batman: Arkham Shadow from about 105 to about 122 fps. A game reads the
+property when it starts. To compare with the default, run `sudo waydroid shell setprop berberis.gearup_min_insns 20`
+and start the game again. Restarting Waydroid restores 1.
+
 Digitalis' ARM64 bionic shares two structures with the host's (x86_64) bionic: `pthread_internal_t`
 and `bionic_tls`. It works only on the Android 16 release whose bionic layout it was built with:
 

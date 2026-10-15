@@ -662,6 +662,9 @@ cmd_setup() {
         install -d "$OVERLAY/system/etc/init"
         : >"$OVERLAY/system/etc/init/ndk_translation.rc"
         say "Installed Digitalis ($(basename "$digitalis")) into $OVERLAY/system"
+        # Hot regions of any length gear up to the heavy optimizer. The default (20 instructions) keeps most of
+        # Unity/IL2CPP's short regions on the lite tier; refract_native measured Manta ~105 -> ~122 fps with 1.
+        properties+=(berberis.gearup_min_insns=1)
     else
         # Either bundle's files (an earlier setup may have installed the QPR0 one).
         for bundle in "$ROOT/prebuilts/digitalis/system" "$digitalis/system"; do
