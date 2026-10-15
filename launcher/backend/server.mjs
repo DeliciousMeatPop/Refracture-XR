@@ -8,6 +8,7 @@
 //                     { event: 'secret', value }      token to encrypt and store (null = delete)
 // Native pieces (windows, file dialogs, credential encryption, opening links) stay
 // in the shell; the Meta token never reaches the UI.
+import { readFileSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -24,11 +25,14 @@ import { WaydroidRuntime, WaydroidEmulator, findAdb } from '../core/waydroid.mjs
 import { checkSetupLinux, fixSetupLinux, headsetStatusLinux } from '../core/setup_linux.mjs';
 import { loadLibraryArtwork } from '../core/artwork.mjs';
 import { remoteZipNames, vrSdk } from '../core/apk_sdk.mjs';
+import { checkUpdate, installUpdate } from '../core/update.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(directory, '../..');
 // On Linux Android runs in Waydroid (core/waydroid.mjs); on Windows in the Android Emulator.
 const linux = process.platform === 'linux';
+// The launcher's version (launcher/package.json), which update checks compare with the latest release.
+const version = JSON.parse(readFileSync(path.join(directory, '../package.json'), 'utf8')).version;
 const option = name => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : undefined; };
 const scan = !process.argv.includes('--no-scan');
 const dataDirectory = option('data') || path.join(process.env.APPDATA || process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local/share'), 'Refract');
@@ -53,6 +57,7 @@ function refreshArtwork() {
 const message = error => redact(error?.message || error);
 function publicState() {
   return { ...state.data, platform: process.platform, signedIn: Boolean(token), account, accountImage, running: runtime.game, runningMode: runtime.mode || null, busy, fixing, fixProgress, starting, emulatorTask,
+    version, updateProgress,
     // Credentials and signed CDN URLs never reach the UI or library file.
     // Games are installed per runtime: on the Android emulator (installed) or in Refract Native (nativeInstalled).
     games: state.data.games.map(({ nativeInstalled, ...g }) => ({ ...g, installed: runtime.native ? Boolean(nativeInstalled) : Boolean(g.installed), files: g.files?.map(f => ({ name: f.name, path: f.path, kind: f.kind, size: f.size })) })) };
@@ -158,8 +163,23 @@ async function downloadGame(id, binaryId, dlcId) {
   return job.id;
 }
 
+// The release checkUpdate found; installUpdate installs only that one.
+let update = null, updateProgress = '';
 const methods = {
   state: () => publicState(),
+  // Asked once per launcher start. Null when Refract is current, offline, or a git checkout.
+  checkUpdate: async () => {
+    update = await checkUpdate(root, version).catch(() => null);
+    return update && { version: update.version, name: update.name, notes: update.notes, page: update.page, size: update.asset.size };
+  },
+  installUpdate: async () => {
+    if (!update) throw new Error('No update to install.');
+    if (updateProgress) throw new Error('The update is already being installed.');
+    if (busy || controllers.size || runtime.child || fixing) throw new Error('Finish downloads, setup and the running game before updating.');
+    updateProgress = 'Starting the update'; changed();
+    try { await persist(); return await installUpdate(root, state.directory, update, text => { updateProgress = text; changed(); }); }
+    catch (error) { updateProgress = ''; changed(); throw error; }
+  },
   // Sign-in: the shell opens Meta's page from authBegin's URL and passes the
   // oculus:// callback it intercepts to authComplete.
   authBegin: async () => { auth = new MetaAuth(); return auth.begin(); },
@@ -437,6 +457,7 @@ async function handle({ id, method, args }) {
   } catch (error) { send({ id, ok: false, error: message(error) }); }
 }
 
+const setupRevision = 1;
 const isSdk = async dir => !!dir && fs.access(path.join(dir, linux ? 'platform-tools/adb' : 'platform-tools/adb.exe')).then(() => true, () => false);
 // Android Studio installs to %LOCALAPPDATA%\Android\Sdk; command-line installs often use ~\Android\Sdk.
 async function findSdk() {
@@ -458,10 +479,16 @@ const loaded = (async () => {
   // Digitalis (the ARM64 translator Refract needs) is built for Android 16, so the default AVD is API 36.
   state.data.settings = { avd: 'refract-google-api36', port: 5580, memoryMB: 8192, downloadDir: path.join(os.homedir(), 'Downloads', 'Refract'),
     cores: 6, showWindow: false, audio: 'dsound', hostMic: true, keepEmulator: false, pcEyeSize: 1600, vrRenderScale: 100,
-    // First run shows the setup wizard, which asks which runtime to use (Settings > Runtime changes it later).
-    backend: 'emulator', setupDone: false, ...state.data.settings };
+    // First run shows the setup wizard, which asks which runtime to use (Settings > Runtime changes it later);
+    // new Windows installs start on Refract Native, the recommended one.
+    backend: linux ? 'emulator' : 'native', setupDone: false, ...state.data.settings };
   // A saved SDK path that has no SDK in it came from an earlier default; look for the real one.
   if (!await isSdk(state.data.settings.sdk)) state.data.settings.sdk = await findSdk();
+  // Installs whose wizard predates this revision see it again (1 = Refract 1.0.0). Bump to show it to everyone once more.
+  if (state.data.settings.setupRevision !== setupRevision) {
+    Object.assign(state.data.settings, { setupDone: false, setupRevision });
+    await state.save();
+  }
   // Refract no longer needs games patched; drop the old ovrport setting.
   delete state.data.settings.ovrportCli;
   // Every install gets its own Meta user id, or online games see all Refract players as one person. A checkout that

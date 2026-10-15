@@ -12,6 +12,7 @@ import { Downloads } from './pages/downloads';
 import { SettingsPage } from './pages/settings';
 import { EmulatorPage } from './pages/emulator';
 import { Welcome } from './components/welcome';
+import { UpdateDialog } from './components/update';
 import './styles.css';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
   const [pending, setPending] = useState(new Set());
   const pendingRef = useRef(new Set());
   const [notice, setNotice] = useState(null);
+  const [update, setUpdate] = useState(null);
   const timer = useRef(null);
   const content = useRef(null);
 
@@ -44,6 +46,8 @@ function App() {
     return () => { active = false; off(); offError(); clearTimeout(timer.current); };
   }, [notify]);
   useEffect(() => { content.current?.scrollTo({ top: 0 }); }, [page]);
+  // Once per start: offer a newer Refract release.
+  useEffect(() => { call('checkUpdate').then(found => found && setUpdate(found), () => {}); }, []);
 
   const connect = () => run('account', async () => {
     const result = await call('login');
@@ -68,7 +72,8 @@ function App() {
       </main>
     </div>
 
-    {state && !state.settings.setupDone && <Welcome state={state} run={run} pending={pending} notify={notify} />}
+    {state && !state.settings.setupDone && !update && <Welcome state={state} run={run} pending={pending} notify={notify} />}
+    {state && update && <UpdateDialog update={update} state={state} run={run} pending={pending} onClose={() => setUpdate(null)} />}
     {running && <div className="now-playing" role="status">
       <span className="orbit"><LogoMark /></span>
       <div><small>Now playing {state.runningMode === 'pc' ? 'on PC' : 'in VR'}</small><strong>{running.name}</strong></div>

@@ -55,6 +55,14 @@ async fn call(app: AppHandle, window: WebviewWindow, backend: State<'_, Backend>
             }
             Ok(Value::Null)
         }
+        // The backend has started a helper that waits for Refract to close, copies the update in and starts it again.
+        "installUpdate" => {
+            let result = backend.request(&method, args).await?;
+            if result.get("restart").and_then(Value::as_bool) == Some(true) {
+                app.exit(0);
+            }
+            Ok(result)
+        }
         "authBegin" | "authComplete" => Err("Use Connect Meta to sign in.".into()),
         _ => backend.request(&method, args).await,
     }
