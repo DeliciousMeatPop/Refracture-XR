@@ -47,6 +47,29 @@ export async function checkUpdate(root, current) {
     asset: { name: asset.name, url: asset.browser_download_url, size: asset.size, sha256: sha256.toLowerCase() } };
 }
 
+// Waits for the launcher (its backend and window) to close, copies the new files over the installation (an overlay:
+// files Refract downloaded there stay) and starts the launcher again. Logs to update.log beside it.
+const APPLY = `import { spawn } from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+const [source, target, launcher, ...pids] = process.argv.slice(2);
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const alive = pid => { try { process.kill(Number(pid), 0); return true; } catch (error) { return error.code === 'EPERM'; } };
+const log = text => fs.appendFile(path.join(path.dirname(process.argv[1]), 'update.log'), new Date().toISOString() + ' ' + text + '\\n').catch(() => {});
+for (const deadline = Date.now() + 30000; pids.some(alive) && Date.now() < deadline;) await sleep(250);
+let copied = false;
+// Files can stay locked for a moment after their process exits.
+for (let attempt = 1; attempt <= 20 && !copied; attempt++) {
+  try { await fs.cp(source, target, { recursive: true, force: true }); copied = true; }
+  catch (error) { await log('copy attempt ' + attempt + ': ' + error.message); await sleep(1000); }
+}
+await log(copied ? 'updated ' + target : 'update failed; starting the installed version');
+spawn(path.join(target, launcher), [], { cwd: target, detached: true, stdio: 'ignore' }).unref();
+`;
+
+// Leftovers of an applied update (the helper can't delete the Node.js it runs from).
+export const cleanUpdate = dataDir => fs.rm(path.join(dataDir, 'update', 'files'), { recursive: true, force: true }).catch(() => {});
+
 async function download(url, destination, size, progress) {
   const response = await fetch(url, { headers: { 'User-Agent': 'Refract-launcher' }, signal: AbortSignal.timeout(60 * 60 * 1000) });
   if (!response.ok || !response.body) throw new Error(`The update download failed (HTTP ${response.status}).`);
@@ -85,39 +108,16 @@ export async function installUpdate(root, dataDir, update, progress = () => {}) 
   const launcher = path.join(source, linux ? 'Refract' : 'Refract.exe');
   if (!await exists(launcher)) throw new Error('The update package has no Refract launcher in it.');
   await fs.rm(archive, { force: true });
+  const node = path.join(source, 'node', linux ? 'node' : 'node.exe');
+  if (!await exists(node)) throw new Error('The update package has no Node.js in it.');
   progress('Restarting Refract');
-  const pids = [process.pid, process.ppid].join(' ');
-  const log = path.join(folder, 'update.log');
-  let child;
-  if (linux) {
-    const script = path.join(folder, 'apply.sh');
-    await fs.writeFile(script, [
-      '#!/bin/sh',
-      `for pid in ${pids}; do i=0; while kill -0 "$pid" 2>/dev/null && [ $i -lt 120 ]; do sleep 0.25; i=$((i+1)); done; done`,
-      'cp -a "$1/." "$2/" || exit 1',
-      'rm -rf "$1"',
-      'cd "$2" && exec ./Refract',
-      ''].join('\n'), { mode: 0o755 });
-    child = spawn('/bin/sh', [script, source, root], { detached: true, stdio: ['ignore', (await fs.open(log, 'w')).fd, 'ignore'] });
-  } else {
-    const script = path.join(folder, 'apply.ps1');
-    await fs.writeFile(script, [
-      'param([string]$Source, [string]$Target, [string]$Wait)',
-      '$deadline = (Get-Date).AddSeconds(30)',
-      'foreach ($id in $Wait -split ",") { while ((Get-Process -Id $id -ErrorAction SilentlyContinue) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 } }',
-      '# Files can stay locked for a moment after their process exits.',
-      'for ($try = 0; $try -lt 20; $try++) {',
-      '  robocopy $Source $Target /E /R:2 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null',
-      '  if ($LASTEXITCODE -lt 8) { break }',
-      '  Start-Sleep -Seconds 1',
-      '}',
-      'if ($LASTEXITCODE -ge 8) { Write-Output "robocopy failed ($LASTEXITCODE)" }',
-      'else { Remove-Item -Recurse -Force (Split-Path $Source) -ErrorAction SilentlyContinue }',
-      'Start-Process (Join-Path $Target "Refract.exe") -WorkingDirectory $Target',
-      ''].join('\r\n'));
-    child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script,
-      '-Source', source, '-Target', root, '-Wait', pids.replace(' ', ',')], { detached: true, windowsHide: true, stdio: ['ignore', (await fs.open(log, 'w')).fd, 'ignore'] });
-  }
+  // The helper is a Node script run by the new package's own Node.js (so node/ here isn't locked while it's
+  // replaced), detached so it outlives this backend. Windows PowerShell can't be the helper: detached, it has no
+  // console and quits at once; attached, libuv's job object ends it together with Node.
+  const script = path.join(folder, 'apply.mjs');
+  await fs.writeFile(script, APPLY);
+  const child = spawn(node, [script, source, root, linux ? 'Refract' : 'Refract.exe', String(process.pid), String(process.ppid)],
+    { cwd: folder, detached: true, stdio: 'ignore', windowsHide: true });
   child.unref();
   return { restart: true };
 }

@@ -25,7 +25,7 @@ import { WaydroidRuntime, WaydroidEmulator, findAdb } from '../core/waydroid.mjs
 import { checkSetupLinux, fixSetupLinux, headsetStatusLinux } from '../core/setup_linux.mjs';
 import { loadLibraryArtwork } from '../core/artwork.mjs';
 import { remoteZipNames, vrSdk } from '../core/apk_sdk.mjs';
-import { checkUpdate, installUpdate } from '../core/update.mjs';
+import { checkUpdate, cleanUpdate, installUpdate } from '../core/update.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(directory, '../..');
@@ -169,6 +169,7 @@ const methods = {
   state: () => publicState(),
   // Asked once per launcher start. Null when Refract is current, offline, or a git checkout.
   checkUpdate: async () => {
+    await cleanUpdate(state.directory);
     update = await checkUpdate(root, version).catch(() => null);
     return update && { version: update.version, name: update.name, notes: update.notes, page: update.page, size: update.asset.size };
   },
