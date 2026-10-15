@@ -4,7 +4,7 @@ REFRACT - play Quest games on your Windows PC
 What you need
 - Windows 10 or 11, 64-bit
 - A graphics card from the last few years (Refract is tested on NVIDIA)
-- 16 GB of RAM or more
+- 12 GB of RAM or more
 - About 10 GB of free disk space, plus room for your games
 - Virtualization turned on in your PC's BIOS/UEFI (usually on already;
   it is called "Intel VT-x" or "AMD-V/SVM")
