@@ -225,7 +225,7 @@ private:
         PROCESSENTRY32W pe{sizeof(pe)};
         const std::wstring want(nativeProcess_.begin(), nativeProcess_.end());
         for (BOOL ok = Process32FirstW(snap, &pe); ok; ok = Process32NextW(snap, &pe))
-            if (_wcsicmp(pe.szExeFile, want.c_str()) == 0) pid = std::max(pid, pe.th32ProcessID);
+            if (_wcsicmp(pe.szExeFile, want.c_str()) == 0) pid = (std::max)(pid, pe.th32ProcessID);  // windows.h may define max
         std::map<int, std::pair<std::string, unsigned long long>> threads;  // tid -> (name, cpu time)
         unsigned long long total = 0;
         HANDLE process = pid ? OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid) : nullptr;

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstring>
 #include <initializer_list>
+#include <type_traits>
 #include "pose_frame.h"
 
 namespace refract::protocol {
@@ -76,11 +77,14 @@ struct ImageProjection {
         ImageProjectionView views[2]{};
         ImageQuad quads[2];
     };
+    // Spelled out: GCC 14 and older cannot copy-list-initialize (`= {}`) the implicit one with this anonymous union.
+    ImageProjection() {}
     uint32_t quad_count() const { return (view_count & kQuadCompositionBit) ? (view_count & ~kQuadCompositionBit) : 0; }
 };
 static_assert(sizeof(ImageQuad) == 44);
 static_assert(sizeof(ImageProjectionView) == 44);
 static_assert(sizeof(ImageProjection) == 96);
+static_assert(std::is_trivially_copyable_v<ImageProjection>);  // Sent with memcpy.
 
 inline bool valid_projection(const ImageProjection& projection) {
     if (projection.view_count != 2 || (projection.layer_flags & ~7u) != 0) { return false; }

@@ -24,7 +24,7 @@ endif()
 # The Linux host bridge's Vulkan frame copies, on this machine's GPU (skipped without one).
 if(UNIX AND NOT APPLE AND NOT ANDROID AND TARGET refract-host-bridge)
   add_executable(refract_vulkan_renderer_smoke vulkan_renderer_smoke.cpp ../host-bridge/vulkan_renderer.cpp)
-  target_include_directories(refract_vulkan_renderer_smoke PRIVATE ${PROJECT_SOURCE_DIR}/host-bridge)
+  target_include_directories(refract_vulkan_renderer_smoke PRIVATE ${PROJECT_SOURCE_DIR}/host-bridge ${PROJECT_SOURCE_DIR}/protocol)
   foreach(headers IN ITEMS "${REFRACT_OPENXR_HEADERS}" "${REFRACT_VULKAN_HEADERS}")
     if(headers)
       target_include_directories(refract_vulkan_renderer_smoke PRIVATE "${headers}")
