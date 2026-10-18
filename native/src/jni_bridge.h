@@ -17,5 +17,6 @@ u64 GuestJniEnv(GuestThread* t);
 bool BindGuestNative(JNIEnv* env, jclass cls, const char* name, const char* sig, u64 guest_fn);
 // "(II)V"-style descriptor of a method ID (via JVMTI); false if unknown.
 bool JavaMethodDescriptor(JNIEnv* env, jmethodID m, std::string* out);
+bool JavaMethodName(JNIEnv* env, jmethodID m, std::string* name, std::string* sig);
 
 }  // namespace rn

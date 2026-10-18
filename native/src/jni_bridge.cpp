@@ -21,6 +21,7 @@
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "host_runtime.h"
@@ -229,6 +230,7 @@ void DecodeArgs(const ParsedSig& sig, jvalue* out, IntFn next_int, DblFn next_do
 
 jmethodID g_find_library_mid = nullptr;  // ClassLoader.findLibrary: the JVM's loader knows nothing of the app's .so files
 jmethodID g_load_class_mid = nullptr;    // ClassLoader.loadClass: ART accepts "a/b/C" names, HotSpot only "a.b.C"
+jmethodID g_process_start_mid = nullptr; // ProcessBuilder.start: Android tools (logcat) are not on the PC
 std::mutex g_mid_names_mu;
 std::map<jmethodID, std::string> g_mid_names;
 void NoteName(jmethodID m, const char* name, const char* sig) {
@@ -236,6 +238,8 @@ void NoteName(jmethodID m, const char* name, const char* sig) {
         g_find_library_mid = m;
     if (m && !strcmp(name, "loadClass") && !strcmp(sig, "(Ljava/lang/String;)Ljava/lang/Class;"))
         g_load_class_mid = m;
+    if (m && !strcmp(name, "start") && !strcmp(sig, "()Ljava/lang/Process;"))
+        g_process_start_mid = m;
     // Native code quitting the app explains an otherwise silent exit.
     for (const char* q : {"exit", "halt", "finish", "finishAffinity", "killProcess", "quit", "finishAndRemoveTask"})
         if (!strcmp(name, q)) {
@@ -330,6 +334,15 @@ void JniCallInner(GuestThread* t) {
                 return;
             }
         }
+        if (K == kVirtual && mid == g_process_start_mid && g_process_start_mid) {
+            static jclass runtime = static_cast<jclass>(e->NewGlobalRef(e->FindClass("refract/Runtime")));
+            static jmethodID start =
+                e->GetStaticMethodID(runtime, "startProcess", "(Ljava/lang/ProcessBuilder;)Ljava/lang/Process;");
+            jvalue a{};
+            a.l = obj;
+            SetReturn(t, e->CallStaticObjectMethodA(runtime, start, &a));
+            return;
+        }
         SetReturn(t, RN_CALL(Object));
     } else if constexpr (R == 'Z') {
         SetReturn(t, RN_CALL(Boolean));
@@ -360,6 +373,44 @@ void JniCall(GuestThread* t) {
         LogPendingException("Java exception in a guest JNI call");
 }
 
+// Constructors that open a file named by their first (String) argument. Native code passes guest paths
+// (Unity reads each OBB's build GUID with new ZipFile("/storage/emulated/0/...")), which the host JVM
+// would look up on the PC as C:\storage\...; NewObject maps them through refract.Runtime.hostPath.
+std::shared_mutex g_path_ctor_mu;
+std::unordered_set<jmethodID> g_path_ctors;
+
+void NotePathCtor(jclass c, const char* name, const char* sig, jmethodID m) {
+    if (!m || strcmp(name, "<init>") || strncmp(sig, "(Ljava/lang/String;", 19))
+        return;
+    static const char* const kOpeners[] = {"java/util/zip/ZipFile", "java/util/jar/JarFile",
+                                           "java/io/FileInputStream", "java/io/RandomAccessFile"};
+    static jclass classes[std::size(kOpeners)];
+    static std::once_flag once;
+    std::call_once(once, [] {
+        for (size_t i = 0; i < std::size(kOpeners); ++i)
+            classes[i] = static_cast<jclass>(Env()->NewGlobalRef(Env()->FindClass(kOpeners[i])));
+    });
+    for (jclass opener : classes) {
+        if (opener && Env()->IsSameObject(c, opener)) {
+            std::unique_lock lock(g_path_ctor_mu);
+            g_path_ctors.insert(m);
+            return;
+        }
+    }
+}
+
+bool IsPathCtor(jmethodID m) {
+    std::shared_lock lock(g_path_ctor_mu);
+    return g_path_ctors.count(m) != 0;
+}
+
+jobject HostPathOf(jobject guestPath) {
+    static jclass runtime = static_cast<jclass>(Env()->NewGlobalRef(Env()->FindClass("refract/Runtime")));
+    static jmethodID hostPath =
+        Env()->GetStaticMethodID(runtime, "hostPath", "(Ljava/lang/String;)Ljava/lang/String;");
+    return Env()->CallStaticObjectMethod(runtime, hostPath, guestPath);
+}
+
 template <CallForm F>
 void JniNewObject(GuestThread* t) {
     ArgReader rd(t);
@@ -381,6 +432,13 @@ void JniNewObject(GuestThread* t) {
             DecodeArgs(sig, buf, [&] { return rd.NextInt(); }, [&] { return rd.NextDouble(); });
         }
     }
+    jvalue mapped[8];
+    ParsedSig ctorSig;
+    if (IsPathCtor(mid) && args[0].l && SigFor(mid, &ctorSig) && ctorSig.params.size() <= std::size(mapped)) {
+        std::copy_n(args, ctorSig.params.size(), mapped);
+        mapped[0].l = HostPathOf(args[0].l);
+        args = mapped;
+    }
     SetReturn(t, Env()->NewObjectA(cls, mid, args));
 }
 
@@ -399,7 +457,15 @@ jclass J_FindClass(u64, const char* name) {
         RN_INFO("JNI FindClass(%s) failed", name);
     return c;
 }
-jmethodID J_FromReflectedMethod(u64, jobject m) { return E->FromReflectedMethod(m); }
+// Unity's AndroidJavaObject finds methods through reflection, so the hooks keyed by name in
+// GetMethodID (NoteName) need the name here too.
+jmethodID J_FromReflectedMethod(u64, jobject r) {
+    jmethodID m = E->FromReflectedMethod(r);
+    std::string name, sig;
+    if (m && JavaMethodName(E, m, &name, &sig))
+        NoteName(m, name.c_str(), sig.c_str());
+    return m;
+}
 jfieldID J_FromReflectedField(u64, jobject f) { return E->FromReflectedField(f); }
 jobject J_ToReflectedMethod(u64, jclass c, jmethodID m, jboolean s) { return E->ToReflectedMethod(c, m, s); }
 jclass J_GetSuperclass(u64, jclass c) { return E->GetSuperclass(c); }
@@ -466,6 +532,7 @@ jboolean J_IsInstanceOf(u64, jobject o, jclass c) {
 jmethodID J_GetMethodID(u64, jclass c, const char* name, const char* sig) {
     jmethodID m = E->GetMethodID(c, name, sig);
     NoteName(m, name, sig);
+    NotePathCtor(c, name, sig, m);
     if (m)
         NoteSig(m, sig);
     else

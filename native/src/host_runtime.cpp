@@ -356,12 +356,18 @@ int H_run() {
 
 }  // namespace
 
-bool JavaMethodDescriptor(JNIEnv*, jmethodID m, std::string* out) {
+bool JavaMethodDescriptor(JNIEnv* env, jmethodID m, std::string* out) {
+    return JavaMethodName(env, m, nullptr, out);
+}
+
+bool JavaMethodName(JNIEnv*, jmethodID m, std::string* out_name, std::string* out) {
     if (!g_jvmti)
         return false;
     char *name = nullptr, *sig = nullptr, *generic = nullptr;
     if (g_jvmti->GetMethodName(m, &name, &sig, &generic) != JVMTI_ERROR_NONE)
         return false;
+    if (out_name)
+        *out_name = name ? name : "";
     *out = sig ? sig : "";
     g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(name));
     g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(sig));

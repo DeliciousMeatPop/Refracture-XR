@@ -44,6 +44,27 @@ public final class Runtime {
         load(path);
     }
 
+    /**
+     * ProcessBuilder.start called from native code (jni_bridge.cpp). Android's logcat does not exist on the PC:
+     * Iron Man VR's startup runs it and stops at the IOException, so it gets a process that prints nothing and
+     * exits 0, as if the log were empty. Other commands start normally.
+     */
+    public static Process startProcess(ProcessBuilder pb) throws java.io.IOException {
+        java.util.List<String> cmd = pb.command();
+        String tool = cmd.isEmpty() ? "" : cmd.get(0);
+        if (tool.equals("logcat") || tool.equals("/system/bin/logcat")) return new EmptyProcess();
+        return pb.start();
+    }
+
+    static final class EmptyProcess extends Process {
+        @Override public java.io.OutputStream getOutputStream() { return new java.io.ByteArrayOutputStream(); }
+        @Override public java.io.InputStream getInputStream() { return new java.io.ByteArrayInputStream(new byte[0]); }
+        @Override public java.io.InputStream getErrorStream() { return new java.io.ByteArrayInputStream(new byte[0]); }
+        @Override public int waitFor() { return 0; }
+        @Override public int exitValue() { return 0; }
+        @Override public void destroy() {}
+    }
+
     public static synchronized void load(String path) {
         if (path.length() > 1 && path.charAt(1) == ':') path = guestPath(path);
         if (loaded.contains(path)) return;
