@@ -272,9 +272,16 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physical,const Vk
             constexpr VkMemoryPropertyFlags cachedCoherent=VK_MEMORY_PROPERTY_HOST_CACHED_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             for(uint32_t i=0;i<props.memoryTypeCount;++i){
                 auto flags=props.memoryTypes[i].propertyFlags;
-                if(!(flags&VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))continue;
-                if((flags&cachedCoherent)==cachedCoherent)state.cachedTypes|=1u<<i;
-                else if(!(flags&VK_MEMORY_PROPERTY_HOST_CACHED_BIT))state.uncachedTypes|=1u<<i;
+                if((flags&VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)&&(flags&cachedCoherent)==cachedCoherent)state.cachedTypes|=1u<<i;
+            }
+            // Hide an uncached type only when a cached type has every property it has: the emulator's
+            // DEVICE_LOCAL|HOST_VISIBLE type has no cached twin, and UE4's Vulkan RHI requires it for its
+            // uniform ring buffer (Resident Evil 4 hit a fatal VerifyVulkanResult when it was hidden).
+            for(uint32_t i=0;i<props.memoryTypeCount;++i){
+                auto flags=props.memoryTypes[i].propertyFlags;
+                if(!(flags&VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)||(flags&VK_MEMORY_PROPERTY_HOST_CACHED_BIT))continue;
+                for(uint32_t c=0;c<props.memoryTypeCount;++c)
+                    if((state.cachedTypes>>c&1)&&(props.memoryTypes[c].propertyFlags&flags)==flags){state.uncachedTypes|=1u<<i;break;}
             }
             __android_log_print(ANDROID_LOG_INFO,"Refract.CachedBuffers","enabled: cached types %x, uncached %x",
                 state.cachedTypes,state.uncachedTypes);
