@@ -6,6 +6,11 @@ add_executable(refract_viewer viewer.cpp "${REFRACT_PROTOCOL}/image_transport.cp
 target_include_directories(refract_viewer PRIVATE "${REFRACT_PROTOCOL}")
 target_compile_definitions(refract_viewer PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE)
 set_property(TARGET refract_viewer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+# Release keeps a PDB so the crash report's module+offset frames can be mapped to source lines.
+if(MSVC)
+  target_compile_options(refract_viewer PRIVATE $<$<CONFIG:Release>:/Zi>)
+  target_link_options(refract_viewer PRIVATE $<$<CONFIG:Release>:/DEBUG /OPT:REF /OPT:ICF>)
+endif()
 target_link_libraries(refract_viewer PRIVATE d3d11 dxgi d2d1 dwrite d3dcompiler ws2_32 windowscodecs ole32 shell32 mfplat mfuuid wmcodecdspuuid)
 include(../host-bridge/loading_screen.cmake)
 refract_add_loading_screen(refract_viewer)

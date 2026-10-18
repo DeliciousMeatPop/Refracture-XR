@@ -38,6 +38,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <exception>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -1183,10 +1184,57 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w, LPARAM l)
     return DefWindowProcW(window, message, w, l);
 }
 
+// A crash used to end the viewer with only exit code 0xC0000409 (abort). Print why to stderr (the launcher's
+// viewer.err), with the stack as module+offset; refract_viewer.pdb maps those to source lines.
+void print_stack(const char* why)
+{
+    void* frames[48];
+    const USHORT count = RtlCaptureStackBackTrace(1, static_cast<DWORD>(std::size(frames)), frames, nullptr);
+    std::fprintf(stderr, "viewer: crashed: %s\n", why);
+    for (USHORT i = 0; i < count; ++i) {
+        HMODULE module = nullptr;
+        char name[MAX_PATH] = "?";
+        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                static_cast<LPCSTR>(frames[i]), &module)) {
+            GetModuleFileNameA(module, name, sizeof(name));
+        }
+        const char* base = std::strrchr(name, '\\');
+        std::fprintf(stderr, "  #%u %s+0x%llx\n", i, base ? base + 1 : name,
+            static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(frames[i]) - reinterpret_cast<uintptr_t>(module)));
+    }
+    std::fflush(stderr);
+}
+
+void install_crash_report()
+{
+    std::set_terminate([] {
+        std::string why = "std::terminate";
+        if (const auto current = std::current_exception()) {
+            try {
+                std::rethrow_exception(current);
+            } catch (const std::exception& e) {
+                why = std::string("uncaught exception: ") + e.what();
+            } catch (...) {
+                why = "uncaught non-standard exception";
+            }
+        }
+        print_stack(why.c_str());
+        std::abort();
+    });
+    SetUnhandledExceptionFilter([](EXCEPTION_POINTERS* info) -> LONG {
+        char why[96];
+        std::snprintf(why, sizeof(why), "exception 0x%08lx at %p", info->ExceptionRecord->ExceptionCode,
+            info->ExceptionRecord->ExceptionAddress);
+        print_stack(why);
+        return EXCEPTION_CONTINUE_SEARCH;
+    });
+}
+
 }  // namespace
 
 int main(int argc, char** argv)
 {
+    install_crash_report();
     int port = 38491, controlPort = 38495;
     std::string adb = R"(C:\Users\mixid\Android\Sdk\platform-tools\adb.exe)", serial = "emulator-5582", package = "com.TrassGames.Yeeps";
     std::string nativeProcess;  // --native refract_native.exe: stats of that process instead of adb

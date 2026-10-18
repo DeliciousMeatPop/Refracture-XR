@@ -176,7 +176,8 @@ private:
                 continue;
             }
             const auto open = line.find('('), close = line.rfind(')');
-            if (open == std::string::npos || close == std::string::npos || close < open) continue;
+            // close + 2 past the end (a line cut off after the name) would make substr throw on this detached thread.
+            if (open == std::string::npos || close == std::string::npos || close < open || close + 2 > line.size()) continue;
             std::istringstream fields(line.substr(close + 2));
             std::string field[13];
             for (auto& f : field) fields >> f;  // state ... utime (index 11), stime (index 12)
