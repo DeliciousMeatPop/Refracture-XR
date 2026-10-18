@@ -1,5 +1,6 @@
 #pragma once
 
+#include "haptic_packet.h"
 #include "pose_frame.h"
 #include "pose_stream_decoder.h"
 #include <mutex>
@@ -16,6 +17,8 @@ class PoseClient {
 public:
     // Return a snapshot: callers may use it while another thread polls input.
     refract::protocol::PoseFrame latest_pose_frame();
+    // Best effort: dropped when the pose stream is down or its socket buffer is full.
+    void send_haptic(const refract::protocol::HapticPacket& packet);
 #if defined(__ANDROID__)
     void set_android_context(JavaVM* vm, jobject context);
     int open_image_transport_fd();

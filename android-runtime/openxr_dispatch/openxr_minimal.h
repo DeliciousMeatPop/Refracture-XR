@@ -578,6 +578,14 @@ struct XrHapticBaseHeader {
     const void* next;
 };
 
+struct XrHapticVibration {
+    XrStructureType type;
+    const void* next;
+    XrDuration duration;
+    float frequency;
+    float amplitude;
+};
+
 struct XrFrameWaitInfo {
     XrStructureType type;
     const void* next;

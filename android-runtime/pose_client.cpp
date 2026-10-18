@@ -112,6 +112,18 @@ refract::protocol::PoseFrame PoseClient::latest_pose_frame()
     return latest_;
 }
 
+void PoseClient::send_haptic(const refract::protocol::HapticPacket& packet)
+{
+#if defined(__ANDROID__)
+    std::lock_guard lock(mutex_);
+    if (socket_ < 0 || connecting_) return;
+    // MSG_DONTWAIT: a stalled host must not block the game thread; a lost pulse is harmless.
+    send(socket_, &packet, sizeof(packet), MSG_DONTWAIT | MSG_NOSIGNAL);
+#else
+    (void)packet;
+#endif
+}
+
 #if defined(__ANDROID__)
 void PoseClient::set_android_context(JavaVM* vm, jobject context)
 {

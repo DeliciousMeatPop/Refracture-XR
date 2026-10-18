@@ -404,6 +404,14 @@ SpaceKind action_space_kind(XrPath subactionPath)
     return SpaceKind::Reference;
 }
 
+uint8_t haptic_hand(XrPath subactionPath)
+{
+    const std::string_view text{path_text(subactionPath)};
+    if (text == "/user/hand/left") return refract::protocol::HapticLeft;
+    if (text == "/user/hand/right") return refract::protocol::HapticRight;
+    return refract::protocol::HapticBoth;
+}
+
 XrPosef protocol_pose_to_xr(const refract::protocol::Pose& pose)
 {
     XrPosef out{};
@@ -3380,6 +3388,15 @@ XrResult XRAPI_CALL xrApplyHapticFeedback_impl(
         hapticFeedback == nullptr) {
         return XR_ERROR_VALIDATION_FAILURE;
     }
+    if (hapticFeedback->type == XR_TYPE_HAPTIC_VIBRATION) {
+        const auto* vibration = reinterpret_cast<const XrHapticVibration*>(hapticFeedback);
+        refract::protocol::HapticPacket packet;
+        packet.hand = haptic_hand(hapticActionInfo->subactionPath);
+        packet.duration_ns = vibration->duration;
+        packet.frequency = vibration->frequency;
+        packet.amplitude = vibration->amplitude;
+        pose_client().send_haptic(packet);
+    }
     return XR_SUCCESS;
 }
 
@@ -3477,6 +3494,10 @@ XrResult XRAPI_CALL xrStopHapticFeedback_impl(
     if (hapticActionInfo == nullptr || hapticActionInfo->type != XR_TYPE_HAPTIC_ACTION_INFO) {
         return XR_ERROR_VALIDATION_FAILURE;
     }
+    refract::protocol::HapticPacket packet;
+    packet.hand = haptic_hand(hapticActionInfo->subactionPath);
+    packet.stop = 1;
+    pose_client().send_haptic(packet);
     return XR_SUCCESS;
 }
 

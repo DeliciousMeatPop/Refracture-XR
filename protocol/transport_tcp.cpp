@@ -122,7 +122,8 @@ int TcpPoseServer::serve_with_producer(
     uint16_t port,
     uint32_t maxFrames,
     const std::function<PoseFrame(uint64_t)>& producer,
-    bool producerPaces)
+    bool producerPaces,
+    const std::function<void(const HapticPacket&)>& onHaptic)
 {
     SocketRuntime runtime;
     if (!runtime.ok()) {
@@ -169,21 +170,46 @@ int TcpPoseServer::serve_with_producer(
         std::fprintf(stderr, "Refract TCP: client connected\n");
         int noDelay = 1;
         setsockopt(client, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&noDelay), sizeof(noDelay));
+        // The client writes haptic packets back on the same connection; recv() returns 0/error once the
+        // socket is shut down below.
+        std::thread reader;
+        if (onHaptic) {
+            reader = std::thread([client, &onHaptic] {
+                HapticPacket packet;
+                size_t have = 0;
+                char* bytes = reinterpret_cast<char*>(&packet);
+                for (;;) {
+                    const int got = static_cast<int>(recv(client, bytes + have, static_cast<int>(sizeof(packet) - have), 0));
+                    if (got <= 0) return;
+                    have += static_cast<size_t>(got);
+                    if (have < sizeof(packet)) continue;
+                    have = 0;
+                    if (packet.magic == kHapticPacketMagic) onHaptic(packet);
+                }
+            });
+        }
+        auto finish_client = [&] {
+#if defined(_WIN32)
+            shutdown(client, SD_BOTH);
+#else
+            shutdown(client, SHUT_RDWR);
+#endif
+            if (reader.joinable()) reader.join();
+            close_socket(client);
+        };
+        bool disconnected = false;
         while (maxFrames == 0 || sequence < maxFrames) {
             const PoseFrame frame = producer(sequence);
             if (!send_all(client, &frame, sizeof(frame))) {
                 std::fprintf(stderr, "Refract TCP: client disconnected\n");
-                close_socket(client);
+                disconnected = true;
                 break;
             }
             ++sequence;
             if (!producerPaces) std::this_thread::sleep_for(std::chrono::microseconds(11111));
         }
-
-        if (maxFrames != 0 && sequence >= maxFrames) {
-            close_socket(client);
-            break;
-        }
+        finish_client();
+        if (!disconnected && maxFrames != 0 && sequence >= maxFrames) break;
     }
 
     close_socket(server);

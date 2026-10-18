@@ -1739,7 +1739,9 @@ private:
             load_func("xrGetActionStatePose", &getActionStatePose_) &&
             load_func("xrGetActionStateBoolean", &getActionStateBoolean_) &&
             load_func("xrGetActionStateFloat", &getActionStateFloat_) &&
-            load_func("xrGetActionStateVector2f", &getActionStateVector2f_)
+            load_func("xrGetActionStateVector2f", &getActionStateVector2f_) &&
+            load_func("xrApplyHapticFeedback", &applyHaptic_) &&
+            load_func("xrStopHapticFeedback", &stopHaptic_)
 #if defined(_WIN32)
             && load_swapchain_functions()
             && load_func("xrGetD3D11GraphicsRequirementsKHR", &getD3D11GraphicsRequirements_)
@@ -3090,6 +3092,11 @@ private:
         std::strncpy(actionInfo.localizedActionName, "Aim pose", XR_MAX_LOCALIZED_ACTION_NAME_SIZE - 1);
         if (createAction_(actionSet_, &actionInfo, &aimPoseAction_) != XR_SUCCESS) return;
 
+        actionInfo.actionType = XR_ACTION_TYPE_VIBRATION_OUTPUT;
+        std::strncpy(actionInfo.actionName, "haptic", XR_MAX_ACTION_NAME_SIZE - 1);
+        std::strncpy(actionInfo.localizedActionName, "Haptic", XR_MAX_LOCALIZED_ACTION_NAME_SIZE - 1);
+        if (createAction_(actionSet_, &actionInfo, &hapticAction_) != XR_SUCCESS) hapticAction_ = XR_NULL_HANDLE;
+
         constexpr const char* inputNames[] = {"trigger", "squeeze", "stick", "primary", "secondary", "menu",
             "stick_press", "primary_touch", "secondary_touch", "trigger_touch", "stick_touch", "thumbrest_touch"};
         for (size_t i = 0; i < InputCount; ++i) {
@@ -3146,6 +3153,29 @@ private:
         }
     }
 
+public:
+    // Called from the pose server's reader thread with the Android runtime's xrApply/StopHapticFeedback.
+    void apply_haptic(const refract::protocol::HapticPacket& packet)
+    {
+        if (hapticAction_ == XR_NULL_HANDLE || !controllerActionsReady_ || !applyHaptic_ || !stopHaptic_) return;
+        for (size_t hand = 0; hand < handSubactionPaths_.size(); ++hand) {
+            if (packet.hand != refract::protocol::HapticBoth && packet.hand != hand) continue;
+            XrHapticActionInfo info{XR_TYPE_HAPTIC_ACTION_INFO};
+            info.action = hapticAction_;
+            info.subactionPath = handSubactionPaths_[hand];
+            if (packet.stop) {
+                stopHaptic_(session_, &info);
+                continue;
+            }
+            XrHapticVibration vibration{XR_TYPE_HAPTIC_VIBRATION};
+            vibration.duration = packet.duration_ns;
+            vibration.frequency = packet.frequency;
+            vibration.amplitude = packet.amplitude < 0.0f ? 0.0f : packet.amplitude > 1.0f ? 1.0f : packet.amplitude;
+            applyHaptic_(session_, &info, reinterpret_cast<const XrHapticBaseHeader*>(&vibration));
+        }
+    }
+
+private:
     void suggest_pose_bindings(const char* interactionProfilePath, const char* poseInputSuffix)
     {
         if (handPoseAction_ == XR_NULL_HANDLE) {
@@ -3174,6 +3204,9 @@ private:
             XrPath path = XR_NULL_PATH;
             const std::string name = std::string("/user/hand/") + hand + "/input/aim/pose";
             if (string_to_path(name.c_str(), &path)) bindings.push_back({aimPoseAction_, path});
+            if (hapticAction_ != XR_NULL_HANDLE &&
+                string_to_path((std::string("/user/hand/") + hand + "/output/haptic").c_str(), &path))
+                bindings.push_back({hapticAction_, path});
         }
         const bool touch = std::strstr(interactionProfilePath, "oculus") != nullptr;
         const bool vive = std::strstr(interactionProfilePath, "vive") != nullptr;
@@ -3495,6 +3528,9 @@ private:
     PFN_xrGetActionStateBoolean getActionStateBoolean_ = nullptr;
     PFN_xrGetActionStateFloat getActionStateFloat_ = nullptr;
     PFN_xrGetActionStateVector2f getActionStateVector2f_ = nullptr;
+    PFN_xrApplyHapticFeedback applyHaptic_ = nullptr;
+    PFN_xrStopHapticFeedback stopHaptic_ = nullptr;
+    XrAction hapticAction_ = XR_NULL_HANDLE;
     PFN_xrEnumerateSwapchainFormats enumerateSwapchainFormats_ = nullptr;
     PFN_xrCreateSwapchain createSwapchain_ = nullptr;
     PFN_xrDestroySwapchain destroySwapchain_ = nullptr;
@@ -3834,7 +3870,9 @@ int OpenXrHost::run(int argc, char** argv)
             refract::protocol::TcpPoseServer poseServer;
             poseServer.serve_with_producer(port, frames, [&](uint64_t sequence) {
                 return poseSource->next_frame(sequence);
-            }, true);
+            }, true, [poseSource](const refract::protocol::HapticPacket& packet) {
+                poseSource->apply_haptic(packet);
+            });
         });
         poseThread.detach();
 
