@@ -233,6 +233,9 @@ bool fov_from_tan_angles(const ovrMatrix4f& t, const ovrRectf& rect, XrFovf& fov
     fov.angleRight = std::atan(tangent(rect.x + rect.width, t.M[0][0], t.M[0][2], t.M[0][3]));
     fov.angleDown = std::atan(tangent(rect.y, t.M[1][1], t.M[1][2], t.M[1][3]));
     fov.angleUp = std::atan(tangent(rect.y + rect.height, t.M[1][1], t.M[1][2], t.M[1][3]));
+    // Vulkan games map up to v = 0 (negative M[1][1]): the image's first row is the top, as OpenXR's Vulkan
+    // swapchains expect, so only the edge order changes (Resident Evil 4 / UE4).
+    if (fov.angleUp < fov.angleDown) std::swap(fov.angleUp, fov.angleDown);
     return fov.angleRight > fov.angleLeft && fov.angleUp > fov.angleDown;
 }
 
@@ -1002,6 +1005,79 @@ bool add_projection(FrameLayers& layers, const ovrRigidBodyPosef& headPose, cons
     return true;
 }
 
+// A projection layer whose TexCoordsFromTanAngles is not a projection: a flat image placed with
+// ovrMatrix4f_TanAngleMatrixFromUnitSquare (OVRPlugin/UE4 stereo layers, splash screens), as one OpenXR quad.
+// Per eye the matrix maps (tanX, tanY, 1) to (u, v, 1) homogeneously, so eye-space points of the image are
+// k * (g.x, g.y, -g.z) with g = inverse * (u, v, 1); k (the distance) comes from where the two eyes' rays to
+// the image centre meet.
+bool add_unit_square(FrameLayers& layers, const ovrRigidBodyPosef& headPose, const EyeImage (&eyes)[2], uint32_t layerFlags, uint64_t frame, int type) {
+    auto& s = state();
+    const auto& image = eyes[0];
+    if (!real_swapchain(image.chain)) return false;
+    auto& chain = *image.chain;
+    if (!chain.xr) { report_skipped_layer(type, "image is not displayable"); return false; }
+    if (layers.quads.size() >= layers.quads.capacity()) return false;
+    if (!select_image(chain, image.index, frame)) { report_skipped_layer(type, "cannot select the submitted image"); return false; }
+    ovrRectf rect = image.rect;
+    if (!(rect.width > 0 && rect.height > 0)) rect = {0, 0, 1, 1};
+    float center[2][3], axisU[3], axisV[3], origin[2][3];
+    for (int eye = 0; eye < 2; ++eye) {
+        const auto& t = eyes[eye].texCoordsFromTanAngles->M;
+        ovrMatrix4f h{}, g{};
+        h.M[3][3] = 1.0f;
+        for (int r = 0; r < 3; ++r) { h.M[r][0] = t[r][0]; h.M[r][1] = t[r][1]; h.M[r][2] = t[r][3] - t[r][2]; }
+        if (!invert(h, g)) { report_skipped_layer(type, "singular quad mapping"); return false; }
+        const ovrMatrix4f rotation = matrix_from_pose(s.eyeOffsets[eye]);
+        const auto toHead = [&](float u, float v, float w, float (&out)[3]) {
+            const float p[3] = {g.M[0][0] * u + g.M[0][1] * v + g.M[0][2] * w, g.M[1][0] * u + g.M[1][1] * v + g.M[1][2] * w,
+                                -(g.M[2][0] * u + g.M[2][1] * v + g.M[2][2] * w)};
+            for (int i = 0; i < 3; ++i) out[i] = rotation.M[i][0] * p[0] + rotation.M[i][1] * p[1] + rotation.M[i][2] * p[2];
+        };
+        toHead(rect.x + rect.width * 0.5f, rect.y + rect.height * 0.5f, 1.0f, center[eye]);
+        if (eye == 0) { toHead(rect.width, 0.0f, 0.0f, axisU); toHead(0.0f, rect.height, 0.0f, axisV); }
+        origin[eye][0] = s.eyeOffsets[eye].position.x; origin[eye][1] = s.eyeOffsets[eye].position.y; origin[eye][2] = s.eyeOffsets[eye].position.z;
+    }
+    // Least squares for origin0 + k0 * a = origin1 + k1 * b.
+    const auto dot = [](const float (&x)[3], const float (&y)[3]) { return x[0] * y[0] + x[1] * y[1] + x[2] * y[2]; };
+    const auto& a = center[0]; const auto& b = center[1];
+    const float d[3] = {origin[1][0] - origin[0][0], origin[1][1] - origin[0][1], origin[1][2] - origin[0][2]};
+    const float aa = dot(a, a), ab = dot(a, b), bb = dot(b, b), ad = dot(a, d), bd = dot(b, d);
+    const float determinant = ab * ab - aa * bb;
+    float k = std::fabs(determinant) > 1e-9f * aa * bb ? (ab * bd - bb * ad) / determinant : 0.0f;
+    const float distance = std::fabs(k) * std::sqrt(aa);
+    if (!(std::isfinite(k) && -k * a[2] > 0 && distance > 0.05f && distance < 100.0f))
+        k = (a[2] > 0 ? -2.0f : 2.0f) / std::sqrt(aa);  // Parallel rays (far away) or no stereo: 2 m in front.
+    float x[3], y[3], z[3];
+    for (int i = 0; i < 3; ++i) { x[i] = k * axisU[i]; y[i] = -k * axisV[i]; }  // +v runs down the image.
+    const float width = std::sqrt(dot(x, x)), height = std::sqrt(dot(y, y));
+    if (!(width > 1e-4f && height > 1e-4f)) return false;
+    for (int i = 0; i < 3; ++i) { x[i] /= width; y[i] /= height; }
+    z[0] = x[1] * y[2] - x[2] * y[1]; z[1] = x[2] * y[0] - x[0] * y[2]; z[2] = x[0] * y[1] - x[1] * y[0];
+    const float zLength = std::sqrt(dot(z, z));
+    if (!(zLength > 1e-4f)) return false;
+    for (float& c : z) c /= zLength;
+    y[0] = z[1] * x[2] - z[2] * x[1]; y[1] = z[2] * x[0] - z[0] * x[2]; y[2] = z[0] * x[1] - z[1] * x[0];
+    ovrMatrix4f frame3{};
+    for (int i = 0; i < 3; ++i) { frame3.M[i][0] = x[i]; frame3.M[i][1] = y[i]; frame3.M[i][2] = z[i]; }
+    const float unit[3] = {1.0f, 1.0f, 1.0f};
+    XrPosef pose = rotation_of(frame3, unit);
+    pose.position = {origin[0][0] + k * a[0], origin[0][1] + k * a[1], origin[0][2] + k * a[2]};
+    const bool fixedToView = (layerFlags & VRAPI_FRAME_LAYER_FLAG_FIXED_TO_VIEW) != 0;
+    if (!fixedToView) pose = multiply(to_xr(headPose.Pose), pose);
+    XrCompositionLayerQuad quad{XR_TYPE_COMPOSITION_LAYER_QUAD};
+    quad.space = fixedToView ? s.viewSpace : tracking_space();
+    quad.eyeVisibility = 0;  // Both eyes.
+    quad.pose = pose;
+    quad.size = {width, height};
+    const int px = static_cast<int>(std::lround(rect.x * chain.width)), py = static_cast<int>(std::lround(rect.y * chain.height));
+    quad.subImage = {chain.xr, {{px, py}, {std::min(chain.width - px, static_cast<int>(std::lround(rect.width * chain.width))),
+                                           std::min(chain.height - py, static_cast<int>(std::lround(rect.height * chain.height)))}}, 0};
+    layers.layouts.push_back({XR_TYPE_COMPOSITION_LAYER_IMAGE_LAYOUT_FB, nullptr, 0});  // v = 0 is the top row.
+    quad.next = &layers.layouts.back();
+    layers.quads.push_back(quad);
+    return true;
+}
+
 // A VrApi cylinder layer (a curved panel: menus, HUDs) as a flat OpenXR quad on the middle of its arc; the
 // runtime composites quads but not cylinders. TexCoordsFromTanAngles is inverse(eye view * cylinder
 // transform), where the transform places a unit cylinder (radius 1, axis +Y, height -1..1) whose 180 degrees
@@ -1465,6 +1541,29 @@ ovrResult SubmitFrame2(ovrMobile*, const ovrSubmitFrameDescription2* description
     FrameLayers layers;
     double displayTime = description->DisplayTime;
     const uint64_t frame = s.submittedFrames + 1;
+    std::vector<std::pair<uint32_t, size_t>> unitSquares;  // Layer index, index in layers.quads.
+    int sceneLayer = -1;
+    bool sceneOpaque = false;
+    // debug.refract.vrapi_layer_log=1 (read once): every 300th frame, what the game submitted per layer.
+    static const bool layerLog = [] { char value[PROP_VALUE_MAX]{}; __system_property_get("debug.refract.vrapi_layer_log", value); return std::strcmp(value, "1") == 0; }();
+    if (layerLog && frame % 300 == 1) {
+        LOGI("frame %llu: %u layer(s)", static_cast<unsigned long long>(frame), description->LayerCount);
+        for (uint32_t i = 0; i < description->LayerCount && description->Layers; ++i) {
+            const ovrLayerHeader2* header = description->Layers[i];
+            if (!header) continue;
+            LOGI("  layer %u type %d flags 0x%x blend %d/%d", i, header->Type, header->Flags, header->SrcBlend, header->DstBlend);
+            if (header->Type != VRAPI_LAYER_TYPE_PROJECTION2) continue;
+            const auto* p = reinterpret_cast<const ovrLayerProjection2*>(header);
+            for (int eye = 0; eye < 2; ++eye) {
+                const auto& t = p->Textures[eye];
+                const auto& m = t.TexCoordsFromTanAngles.M;
+                LOGI("    eye %d chain %p%s index %d rect %.3f,%.3f %.3fx%.3f m [%.3f %.3f %.3f %.3f | %.3f %.3f %.3f %.3f | %.3f %.3f %.3f %.3f | %.3f %.3f %.3f %.3f]",
+                     eye, static_cast<void*>(t.ColorSwapChain), real_swapchain(t.ColorSwapChain) ? (t.ColorSwapChain->xr ? "" : " (not displayable)") : " (placeholder)",
+                     t.SwapChainIndex, t.TextureRect.x, t.TextureRect.y, t.TextureRect.width, t.TextureRect.height,
+                     m[0][0], m[0][1], m[0][2], m[0][3], m[1][0], m[1][1], m[1][2], m[1][3], m[2][0], m[2][1], m[2][2], m[2][3], m[3][0], m[3][1], m[3][2], m[3][3]);
+            }
+        }
+    }
     for (uint32_t i = 0; i < description->LayerCount && description->Layers; ++i) {
         const ovrLayerHeader2* header = description->Layers[i];
         if (!header) continue;
@@ -1480,9 +1579,24 @@ ovrResult SubmitFrame2(ovrMobile*, const ovrSubmitFrameDescription2* description
         const EyeImage eyes[2] = {
             {projection->Textures[0].ColorSwapChain, projection->Textures[0].SwapChainIndex, &projection->Textures[0].TexCoordsFromTanAngles, projection->Textures[0].TextureRect},
             {projection->Textures[1].ColorSwapChain, projection->Textures[1].SwapChainIndex, &projection->Textures[1].TexCoordsFromTanAngles, projection->Textures[1].TextureRect}};
-        if (add_projection(layers, projection->HeadPose, eyes, header->Flags, frame, header->Type) && projection->HeadPose.TimeInSeconds > 0)
-            displayTime = projection->HeadPose.TimeInSeconds;  // The time its poses (and the runtime's pose tag) were sampled for.
+        ovrRectf rect = eyes[0].rect;
+        if (!(rect.width > 0 && rect.height > 0)) rect = {0, 0, 1, 1};
+        XrFovf fov{};
+        if (!fov_from_tan_angles(*eyes[0].texCoordsFromTanAngles, rect, fov)) {
+            if (add_unit_square(layers, projection->HeadPose, eyes, header->Flags, frame, header->Type)) unitSquares.push_back({i, layers.quads.size() - 1});
+            continue;
+        }
+        if (add_projection(layers, projection->HeadPose, eyes, header->Flags, frame, header->Type)) {
+            sceneLayer = static_cast<int>(i);
+            sceneOpaque = header->SrcBlend == kVrApiBlendOne && header->DstBlend == kVrApiBlendZero;
+            if (projection->HeadPose.TimeInSeconds > 0)
+                displayTime = projection->HeadPose.TimeInSeconds;  // The time its poses (and the runtime's pose tag) were sampled for.
+        }
     }
+    // Quads go on top of the scene; one the game put under an opaque scene would have been hidden by it.
+    if (sceneOpaque)
+        for (size_t q = unitSquares.size(); q-- > 0;)
+            if (static_cast<int>(unitSquares[q].first) < sceneLayer) layers.quads.erase(layers.quads.begin() + static_cast<long>(unitSquares[q].second));
     return end_frame(layers, displayTime);
 }
 

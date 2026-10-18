@@ -104,6 +104,10 @@ enum ovrGraphicsAPI : int32_t {
 };
 constexpr int32_t kVrApiGraphicsTypeMask = 0xFFFF0000;
 
+// ovrFrameLayerBlend values used to tell an opaque layer (ONE, ZERO) from a blended one.
+constexpr int32_t kVrApiBlendZero = 0;
+constexpr int32_t kVrApiBlendOne = 1;
+
 struct ovrInitParms {
     ovrStructureType Type;
     int ProductVersion;
