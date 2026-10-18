@@ -13,6 +13,7 @@
 #include <shared_mutex>
 #include <vector>
 #include "vulkan_descriptor_template.h"
+#include "vulkan_fence_tracker.h"
 #include "vulkan_texture_transcoder.h"
 
 namespace {
@@ -33,6 +34,7 @@ struct Device {
     std::shared_ptr<refract::TextureTranscoder> transcoder;  // debug.refract.transcode_textures=1 and BC supported
     PFN_vkBeginCommandBuffer beginCommandBuffer = nullptr;
     PFN_vkCmdCopyBufferToImage copyBufferToImage = nullptr;
+    std::shared_ptr<refract::FenceTracker> fences;  // debug.refract.fence_tracking (on unless "0")
 };
 // Lookups on the per-draw path take a shared lock; only create/destroy calls write.
 std::shared_mutex mutex;
@@ -114,6 +116,13 @@ bool transcodeTextures(){
     static const bool active=[] {char value[PROP_VALUE_MAX]{};
         __system_property_get("debug.refract.transcode_textures",value);
         return !std::strcmp(value,"1");}();
+    return active;
+}
+// debug.refract.fence_tracking=0 (read once) sends fence queries and resets to the host again (see vulkan_fence_tracker.h).
+bool fenceTracking(){
+    static const bool active=[] {char value[PROP_VALUE_MAX]{};
+        __system_property_get("debug.refract.fence_tracking",value);
+        return std::strcmp(value,"0")!=0;}();
     return active;
 }
 // debug.refract.vram_stats=1 (read once): accounts live device memory per memory type and bound images per
@@ -286,6 +295,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physical,const Vk
             __android_log_print(ANDROID_LOG_INFO,"Refract.CachedBuffers","enabled: cached types %x, uncached %x",
                 state.cachedTypes,state.uncachedTypes);
         }
+        if(fenceTracking())state.fences=std::make_shared<refract::FenceTracker>(*out,gdpa);
         if(vramStats()){
             VkPhysicalDeviceMemoryProperties props{};
             function<PFN_vkGetPhysicalDeviceMemoryProperties>(s,"vkGetPhysicalDeviceMemoryProperties")(physical,&props);
@@ -301,6 +311,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physical,const Vk
 VKAPI_ATTR void VKAPI_CALL vkDestroyDevice(VkDevice h,const VkAllocationCallbacks* alloc){
     auto s=device(h);{std::lock_guard lock(mutex);devices.erase(key(h));for(auto it=templates.begin();it!=templates.end();)if(it->first.first==h)it=templates.erase(it);else ++it;}
     s.transcoder.reset();  // frees its staging before the device goes
+    s.fences.reset();  // stops its helper thread
     function<PFN_vkDestroyDevice>(s,"vkDestroyDevice")(h,alloc);
 }
 VKAPI_ATTR void VKAPI_CALL vkGetBufferMemoryRequirements(VkDevice h,VkBuffer buffer,VkMemoryRequirements* out){
@@ -421,18 +432,68 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice h,VkPipelineCac
 VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue,uint32_t count,const VkSubmitInfo* submits,VkFence fence){
     auto s=device(queue);auto next=function<PFN_vkQueueSubmit>(s,"vkQueueSubmit");
     thread_local std::vector<VkSubmitInfo> modified;thread_local std::vector<std::vector<VkCommandBuffer>> lists;
-    if(s.transcoder&&s.transcoder->prepareSubmit(count,submits,modified,lists))return next(queue,count,modified.data(),fence);
-    return next(queue,count,submits,fence);
+    auto result=s.transcoder&&s.transcoder->prepareSubmit(count,submits,modified,lists)?next(queue,count,modified.data(),fence):next(queue,count,submits,fence);
+    if(result==VK_SUCCESS&&s.fences)s.fences->submitted(fence);
+    return result;
 }
 VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit2(VkQueue queue,uint32_t count,const VkSubmitInfo2* submits,VkFence fence){
     auto s=device(queue);auto next=function<PFN_vkQueueSubmit2>(s,"vkQueueSubmit2");
     if(!next)next=function<PFN_vkQueueSubmit2>(s,"vkQueueSubmit2KHR");
     thread_local std::vector<VkSubmitInfo2> modified;thread_local std::vector<std::vector<VkCommandBufferSubmitInfo>> lists;
-    if(s.transcoder&&s.transcoder->prepareSubmit2(count,submits,modified,lists))return next(queue,count,modified.data(),fence);
-    return next(queue,count,submits,fence);
+    auto result=s.transcoder&&s.transcoder->prepareSubmit2(count,submits,modified,lists)?next(queue,count,modified.data(),fence):next(queue,count,submits,fence);
+    if(result==VK_SUCCESS&&s.fences)s.fences->submitted(fence);
+    return result;
 }
 VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit2KHR(VkQueue queue,uint32_t count,const VkSubmitInfo2* submits,VkFence fence){
     return vkQueueSubmit2(queue,count,submits,fence);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkQueueBindSparse(VkQueue queue,uint32_t count,const VkBindSparseInfo* infos,VkFence fence){
+    auto s=device(queue);auto result=function<PFN_vkQueueBindSparse>(s,"vkQueueBindSparse")(queue,count,infos,fence);
+    if(result==VK_SUCCESS&&s.fences)s.fences->submitted(fence);
+    return result;
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateFence(VkDevice h,const VkFenceCreateInfo* info,const VkAllocationCallbacks* alloc,VkFence* out){
+    auto s=device(h);auto result=function<PFN_vkCreateFence>(s,"vkCreateFence")(h,info,alloc,out);
+    if(result==VK_SUCCESS&&s.fences){
+        // An exportable fence may be handed to someone the layer cannot see; leave it to the driver.
+        bool exportable=false;
+        for(auto* n=static_cast<const VkBaseInStructure*>(info->pNext);n;n=n->pNext)exportable|=n->sType==VK_STRUCTURE_TYPE_EXPORT_FENCE_CREATE_INFO;
+        if(!exportable)s.fences->created(*out,info->flags&VK_FENCE_CREATE_SIGNALED_BIT);
+    }
+    return result;
+}
+VKAPI_ATTR void VKAPI_CALL vkDestroyFence(VkDevice h,VkFence fence,const VkAllocationCallbacks* alloc){
+    auto s=device(h);if(s.fences&&fence)s.fences->destroyed(fence);
+    function<PFN_vkDestroyFence>(s,"vkDestroyFence")(h,fence,alloc);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetFenceStatus(VkDevice h,VkFence fence){
+    auto s=device(h);if(s.fences)return s.fences->status(h,fence);
+    return function<PFN_vkGetFenceStatus>(s,"vkGetFenceStatus")(h,fence);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkResetFences(VkDevice h,uint32_t count,const VkFence* fences){
+    auto s=device(h);if(s.fences)return s.fences->reset(h,count,fences);
+    return function<PFN_vkResetFences>(s,"vkResetFences")(h,count,fences);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkWaitForFences(VkDevice h,uint32_t count,const VkFence* fences,VkBool32 all,uint64_t timeout){
+    auto s=device(h);if(s.fences)return s.fences->wait(h,count,fences,all,timeout);
+    return function<PFN_vkWaitForFences>(s,"vkWaitForFences")(h,count,fences,all,timeout);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkGetFenceFdKHR(VkDevice h,const VkFenceGetFdInfoKHR* info,int* fd){
+    auto s=device(h);
+    if(s.fences&&info->handleType==VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT&&s.fences->exportSignaled(info->fence)){*fd=-1;return VK_SUCCESS;}
+    return function<PFN_vkGetFenceFdKHR>(s,"vkGetFenceFdKHR")(h,info,fd);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkImportFenceFdKHR(VkDevice h,const VkImportFenceFdInfoKHR* info){
+    auto s=device(h);if(s.fences)s.fences->forget(info->fence);
+    return function<PFN_vkImportFenceFdKHR>(s,"vkImportFenceFdKHR")(h,info);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkAcquireNextImageKHR(VkDevice h,VkSwapchainKHR swapchain,uint64_t timeout,VkSemaphore semaphore,VkFence fence,uint32_t* index){
+    auto s=device(h);if(s.fences)s.fences->forget(fence);
+    return function<PFN_vkAcquireNextImageKHR>(s,"vkAcquireNextImageKHR")(h,swapchain,timeout,semaphore,fence,index);
+}
+VKAPI_ATTR VkResult VKAPI_CALL vkAcquireNextImage2KHR(VkDevice h,const VkAcquireNextImageInfoKHR* info,uint32_t* index){
+    auto s=device(h);if(s.fences)s.fences->forget(info->fence);
+    return function<PFN_vkAcquireNextImage2KHR>(s,"vkAcquireNextImage2KHR")(h,info,index);
 }
 VKAPI_ATTR VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer cmd,const VkCommandBufferBeginInfo* info){
     auto s=device(cmd);if(s.transcoder)s.transcoder->reset(cmd);
@@ -587,11 +648,16 @@ PFN_vkVoidFunction intercept(const char* name){
     if(transcodeTextures()){
         ENTRY(vkMapMemory);ENTRY(vkUnmapMemory);ENTRY(vkCreateBuffer);ENTRY(vkDestroyBuffer);
         ENTRY(vkBindBufferMemory);ENTRY(vkBindBufferMemory2);ENTRY(vkBindBufferMemory2KHR);ENTRY(vkCreateImageView);
-        ENTRY(vkCreateCommandPool);ENTRY(vkQueueSubmit);ENTRY(vkQueueSubmit2);ENTRY(vkQueueSubmit2KHR);
+        ENTRY(vkCreateCommandPool);
         ENTRY(vkAllocateCommandBuffers);ENTRY(vkBeginCommandBuffer);ENTRY(vkResetCommandBuffer);ENTRY(vkFreeCommandBuffers);
         ENTRY(vkResetCommandPool);ENTRY(vkDestroyCommandPool);
         ENTRY(vkCmdCopyBufferToImage);ENTRY(vkCmdCopyBufferToImage2);ENTRY(vkCmdCopyBufferToImage2KHR);
         ENTRY(vkCmdCopyImage);ENTRY(vkCmdCopyImageToBuffer);
+    }
+    if(transcodeTextures()||fenceTracking()){ENTRY(vkQueueSubmit);ENTRY(vkQueueSubmit2);ENTRY(vkQueueSubmit2KHR);}
+    if(fenceTracking()){
+        ENTRY(vkQueueBindSparse);ENTRY(vkCreateFence);ENTRY(vkDestroyFence);ENTRY(vkGetFenceStatus);ENTRY(vkResetFences);
+        ENTRY(vkWaitForFences);ENTRY(vkGetFenceFdKHR);ENTRY(vkImportFenceFdKHR);ENTRY(vkAcquireNextImageKHR);ENTRY(vkAcquireNextImage2KHR);
     }
     if(hitchLog()){ENTRY(vkCreateGraphicsPipelines);ENTRY(vkCreateComputePipelines);}
     ENTRY(vkCreateDescriptorUpdateTemplate);ENTRY(vkDestroyDescriptorUpdateTemplate);ENTRY(vkUpdateDescriptorSetWithTemplate);

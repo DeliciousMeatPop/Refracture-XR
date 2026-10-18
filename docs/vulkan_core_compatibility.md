@@ -12,7 +12,13 @@ game libraries are changed. The old setup entry points forward to this policy.
 The layer expands descriptor templates and exposes promoted Vulkan aliases at
 the graphics-driver boundary. The native x86_64 layer path was verified with
 Batman's libraries restored to their ovrport-APK hashes, delivering shared GPU
-frames. The ARM64 layer-in-runtime-APK experiment was superseded by the native
+frames. It also keeps fence state in the guest (`vulkan_fence_tracker.h`,
+`debug.refract.fence_tracking=0` disables it): under gfxstream every
+`vkGetFenceStatus`, `vkResetFences` and `vkWaitForFences` is a blocking host
+round trip, and Unreal polls its fences hundreds of times a second. A helper
+thread waits for submitted fences and resets them on the host in batches, so the
+game's queries never leave the guest (Resident Evil 4: 49 -> 69 fps).
+The ARM64 layer-in-runtime-APK experiment was superseded by the native
 system layer. Full gameplay remains blocked by ARM translator instruction
 support; see `arm64_atomic_compatibility.md`.
 

@@ -64,11 +64,12 @@ def main():
         scheduler = 'NO_TTWU_QUEUE' if 'NO_TTWU_QUEUE' in features.split() else 'unchanged'
     root = Path(__file__).resolve().parents[1]
     source = root / 'tools/android_vulkan_layer.cpp'
-    header = root / 'tools/vulkan_descriptor_template.h'
+    headers = [root / 'tools' / name for name in ('vulkan_descriptor_template.h', 'vulkan_fence_tracker.h',
+                                                  'vulkan_texture_transcoder.h', 'texture_transcode.h', 'astc_decode.h', 'astc_bc3_spirv.h')]
     output = root / 'build-vulkan-compat/libVkLayer_REFRACT_runtime.so'
     output.parent.mkdir(exist_ok=True)
     # A packaged Refract ships only the built layer; a source checkout rebuilds it when the source changes.
-    if not output.exists() or (source.exists() and output.stat().st_mtime < max(source.stat().st_mtime, header.stat().st_mtime)):
+    if not output.exists() or (source.exists() and output.stat().st_mtime < max(p.stat().st_mtime for p in [source, *headers] if p.exists())):
         host, wrapper = ('windows-x86_64', '.cmd') if os.name == 'nt' else ('linux-x86_64', '')
         compilers = sorted((sdk / 'ndk').glob(f'*/toolchains/llvm/prebuilt/{host}/bin/x86_64-linux-android29-clang++{wrapper}'),
                            key=lambda p: tuple(int(n) for n in p.parents[5].name.split('.')))
@@ -102,6 +103,8 @@ def main():
     run('shell', 'setprop debug.refract.cached_buffer_memory 1')
     # ETC2/EAC/ASTC textures become BC, which the host GPU samples natively (no decompressed copy in VRAM).
     run('shell', 'setprop debug.refract.transcode_textures 1')
+    # Fence queries and resets answered in the guest instead of a host round trip each (Resident Evil 4 49 -> 69 fps).
+    run('shell', 'setprop debug.refract.fence_tracking 1')
     # Let the translator's optimizing tier take hot regions of any size (default: 20+ instructions). Batman
     # spent ~20% of UnityMain entering tiny lite regions; 0 gave ~70 -> ~79 fps. Read once at game start.
     if translator == 'digitalis':
