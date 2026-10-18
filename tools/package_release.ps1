@@ -71,6 +71,7 @@ Add 'build-native\guest'
 Add 'build-native\java\refract-android.jar'
 Add 'build-android-runtime-windows-arm64-v8a\systemdriver\package\lib\arm64-v8a\libopenxr_runtime.so'
 Add 'build-android-runtime-windows-arm64-v8a\systemdriver\package\lib\arm64-v8a\librefract_driver.so'
+Add 'build-android-runtime-windows-arm64-v8a\systemdriver\package\lib\arm64-v8a\libvrapiimpl.so'
 Add 'build-platform-sdk\package\lib\arm64-v8a\librefract_ovrplatform.so'
 foreach ($file in 'install_apk.py', 'make_sysroot.py') { Add "native\tools\$file" }
 Add 'native\java\tools\ShimBuilder.java'

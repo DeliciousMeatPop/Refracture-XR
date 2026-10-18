@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- VrApi smoke test (vrapi_smoke.cpp): a NativeActivity VR app on Meta's VrApi loader. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.refract.vrapismoke"
+    android:versionCode="1"
+    android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="29" />
+    <uses-feature android:glEsVersion="0x00030001" android:required="true" />
+    <uses-feature android:name="android.hardware.vr.headtracking" android:required="true" android:version="1" />
+    <!-- Lets a Quest start it with its controllers asleep (no "controllers required" dialog). -->
+    <uses-feature android:name="oculus.software.handtracking" android:required="false" />
+    <uses-permission android:name="com.oculus.permission.HAND_TRACKING" />
+    <application
+        android:label="Refract VrApi Smoke"
+        android:hasCode="false"
+        android:allowBackup="false">
+        <meta-data android:name="com.samsung.android.vr.application.mode" android:value="vr_only" />
+        <activity
+            android:name="android.app.NativeActivity"
+            android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode"
+            android:screenOrientation="landscape"
+            android:launchMode="singleTask"
+            android:resizeableActivity="false"
+            android:exported="true">
+            <meta-data android:name="android.app.lib_name" android:value="vrapi_smoke" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="com.oculus.intent.category.VR" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

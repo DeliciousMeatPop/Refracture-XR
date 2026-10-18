@@ -33,6 +33,9 @@ Quest game (Android Emulator, Refract Native or Waydroid)
 Eye images are shared on the GPU, and headset and controller poses go back to the game. ARM64-only
 games run through the Digitalis translator, or Refract Native's own ARM64 JIT.
 
+Older games built on Meta's VrApi SDK (before OpenXR) run through Refract's VrApi layer on top of the
+same runtime. This is experimental; see [docs/vrapi.md](docs/vrapi.md).
+
 ## Requirements
 
 - Windows 10 or 11 (64-bit), or Linux with Waydroid 1.6.3 or newer

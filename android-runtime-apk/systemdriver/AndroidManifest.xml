@@ -1,7 +1,9 @@
 <!-- com.oculus.systemdriver stand-in. Meta's OpenXR loader, bundled in many Quest games (Unity OVRPlugin),
      loads the runtime from this package: it calls com.oculus.systemdriver.DriverLoader.loadXrRuntime() and
-     getProcAddr() in its class loader. The package carries a copy of Refract's libopenxr_runtime.so and
-     refract_driver.c. Games without a <queries> entry still see it, because they target API 29. -->
+     getProcAddr() in its class loader. Meta's VrApi loader (libvrapi.so, games built before OpenXR) calls
+     DriverLoader.load64() and gets libvrapiimpl.so's function accessor. The package carries a copy of
+     Refract's libopenxr_runtime.so, refract_driver.c and libvrapiimpl.so. Games without a <queries> entry
+     still see it, because they target API 29. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.oculus.systemdriver"
     android:versionCode="1"

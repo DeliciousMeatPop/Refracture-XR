@@ -64,6 +64,7 @@ try {
     Run "$bt\d8.bat" (@('--min-api', '29', '--output', "$driver\dex") + $classes)
     Run $clang @("--target=$target", '-shared', '-fPIC', '-O2', '-Wall', '-o', "$driver\package\lib\$Abi\librefract_driver.so", "$PSScriptRoot\systemdriver\refract_driver.c", '-llog', '-ldl')
     Copy-Item "$build\runtime\android-runtime\libopenxr_runtime.so" "$driver\package\lib\$Abi" -Force
+    Copy-Item "$build\runtime\android-runtime\libvrapiimpl.so" "$driver\package\lib\$Abi" -Force  # VrApi games
     Copy-Item "$driver\dex\classes.dex" "$driver\package" -Force
     Run "$Jdk\bin\jar.exe" @('uf', "$driver\unsigned.apk", '-C', "$driver\package", 'classes.dex', '-C', "$driver\package", 'lib')
     Run "$bt\zipalign.exe" @('-f', '-p', '4', "$driver\unsigned.apk", "$driver\aligned.apk")

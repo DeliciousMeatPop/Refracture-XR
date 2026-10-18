@@ -5,8 +5,11 @@ import android.util.Log;
 
 import java.lang.reflect.Method;
 
-// The entry point Meta's OpenXR loader calls in com.oculus.systemdriver: load the runtime, then look up
-// xrNegotiateLoaderRuntimeInterface and friends through getProcAddr (refract_driver.c).
+// The entry points Meta's loaders call in com.oculus.systemdriver:
+// - the OpenXR loader: loadXrRuntime(), then xrNegotiateLoaderRuntimeInterface and friends through getProcAddr
+//   (refract_driver.c);
+// - the VrApi loader (libvrapi.so in games built before OpenXR): load32/load64[Ext](), which return the
+//   function accessor of libvrapiimpl.so (android-runtime/vrapi), Refract's VrApi on top of the same runtime.
 public final class DriverLoader {
     private static final String TAG = "RefractDriverLoader";
 
@@ -33,6 +36,33 @@ public final class DriverLoader {
         }
     }
 
+    // VrApi: (game context, driver context, VrApi product/major/minor/patch/build version[, API layers]).
+    public static long load32(Context app, Context driver, int product, int major, int minor, int patch, int build) {
+        return loadVrApi(major, minor, patch);
+    }
+
+    public static long load64(Context app, Context driver, int product, int major, int minor, int patch, int build) {
+        return loadVrApi(major, minor, patch);
+    }
+
+    public static long load32Ext(Context app, Context driver, int product, int major, int minor, int patch, int build,
+                                 long layers) {
+        return loadVrApi(major, minor, patch);
+    }
+
+    public static long load64Ext(Context app, Context driver, int product, int major, int minor, int patch, int build,
+                                 long layers) {
+        return loadVrApi(major, minor, patch);
+    }
+
+    private static long loadVrApi(int major, int minor, int patch) {
+        Log.i(TAG, "Loading Refract VrApi driver for VrApi " + major + "." + minor + "." + patch);
+        System.loadLibrary("openxr_runtime");
+        System.loadLibrary("vrapiimpl");
+        return nativeGetVrApiAccessor();
+    }
+
     private static native void setContext(Context context);
     public static native long getProcAddr(String name);
+    private static native long nativeGetVrApiAccessor();
 }

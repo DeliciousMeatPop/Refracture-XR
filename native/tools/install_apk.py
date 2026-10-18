@@ -183,6 +183,9 @@ def main() -> int:
             if not (args.runtime / name).exists():
                 sys.exit(f"{args.runtime / name} missing: run android-runtime-apk/build_apk.ps1 -Abi arm64-v8a")
             shutil.copy2(args.runtime / name, libdir / name)
+        # VrApi games: Meta's libvrapi.so gets Refract's VrApi driver from the same DriverLoader (load64).
+        if (args.runtime / "libvrapiimpl.so").exists():
+            shutil.copy2(args.runtime / "libvrapiimpl.so", libdir / "libvrapiimpl.so")
         print("  Refract OpenXR runtime (com.oculus.systemdriver stand-in)")
         # Refract's Meta Platform SDK stand-in (package com.oculus.horizon on the emulator): the game's
         # libovrplatformloader.so loads its EntryPoint through createPackageContext, which is this app here.

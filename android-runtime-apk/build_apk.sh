@@ -88,6 +88,7 @@ mapfile -t classes < <(find "$DRIVER/classes" -name '*.class')
 "$CLANG" --target="$TARGET" -shared -fPIC -O2 -Wall -o "$DRIVER/package/lib/$ABI/librefract_driver.so" \
     "$APP_DIR/systemdriver/refract_driver.c" -llog -ldl
 cp "$BUILD_DIR/runtime/android-runtime/libopenxr_runtime.so" "$DRIVER/package/lib/$ABI/"
+cp "$BUILD_DIR/runtime/android-runtime/libvrapiimpl.so" "$DRIVER/package/lib/$ABI/"  # VrApi games
 cp "$DRIVER/dex/classes.dex" "$DRIVER/package/"
 "$JAR" uf "$DRIVER/unsigned.apk" -C "$DRIVER/package" classes.dex -C "$DRIVER/package" lib
 "$ZIPALIGN" -f -p 4 "$DRIVER/unsigned.apk" "$DRIVER/aligned.apk"
