@@ -194,7 +194,12 @@ OVR_EXPORT uint64_t ovr_UnityInitWrapperAsynchronous(const char* appId) {
     LOGI("ovr_UnityInitWrapperAsynchronous(app %s) for %s", appId ? appId : "?", g_app.package.c_str());
     return postSuccess(kPlatformInitializeAndroidAsynchronous);
 }
-// What the loader's exported ovr_UnityInitWrapperAsynchronous forwards to (after finding the activity).
+// What the loader's exported ovr_UnityInitWrapper and ovr_UnityInitWrapperAsynchronous forward to (after
+// finding the activity). The synchronous one returns a bool: false makes Unity's Core.Initialize fail, and
+// every request after it returns no request id.
+OVR_EXPORT bool ovr_UnityInitWrapperInternal(const char* appId, jobject, JNIEnv*) {
+    return ovr_UnityInitWrapper(appId);
+}
 OVR_EXPORT uint64_t ovr_UnityInitWrapperInternalAsynchronous(const char* appId) {
     return ovr_UnityInitWrapperAsynchronous(appId);
 }
@@ -462,7 +467,7 @@ const std::unordered_map<std::string, void*>& implemented() {
         FN(ovr_PlatformInitializeAndroid), FN(ovr_PlatformInitializeAndroidWithOptions),
         FN(ovr_PlatformAndroidCheckInitialization), FN(ovr_PlatformInitializeAndroidAsynchronous),
         FN(ovr_PlatformInitializeAndroidAsynchronousWithOptions), FN(ovr_UnityInitWrapper),
-        FN(ovr_UnityInitWrapperAsynchronous), FN(ovr_UnityInitWrapperInternalAsynchronous), FN(ovr_UnityInitWrapperStandalone), FN(ovr_UnityInitGlobals),
+        FN(ovr_UnityInitWrapperAsynchronous), FN(ovr_UnityInitWrapperInternal), FN(ovr_UnityInitWrapperInternalAsynchronous), FN(ovr_UnityInitWrapperStandalone), FN(ovr_UnityInitGlobals),
         FN(ovr_PlatformInitializeWithAccessToken), FN(ovr_PlatformInitializeWithAccessTokenAndOptions),
         FN(ovr_Platform_InitializeStandaloneOculus), FN(ovr_IsPlatformInitialized),
         FN(ovr_PopMessage), FN(ovr_FreeMessage), FN(ovr_Message_GetType), FN(ovr_Message_GetRequestID),
