@@ -1056,7 +1056,7 @@ cmd_play() {
             abort="$(grep -a -m1 -oE 'Abort message: .*' <<<"$game_log" || true)"
             [[ -n "$crash" && -n "$abort" ]] && crash="$crash. $abort"
             if [[ -n "$crash" ]] && grep -aqE 'VrApiLoader|VrApi Loader' <<<"$game_log"; then
-                warn "$name is built on Meta's older VrApi SDK, which Refract does not support (only OpenXR games run)."
+                warn "$name crashed: $crash. It is built on Meta's older VrApi SDK, which Refract supports only experimentally."
             elif [[ -n "$crash" ]]; then
                 warn "$name crashed: $crash"
             else

@@ -139,9 +139,10 @@ the store listing's current release is offered instead.
 Library pagination is reported if Meta returns a partial entitlement response.
 
 Opening a Meta game that is not downloaded yet checks which VR SDK its current
-build uses by reading only the APK's zip directory (two ranged requests): games
-on Meta's older VrApi SDK (`libvrapi.so` without an OpenXR loader) are marked
-"VrApi, not supported". Downloaded and imported APKs are checked the same way.
+build uses by reading only the APK's zip directory (two ranged requests). Games
+on Meta's older VrApi SDK (`libvrapi.so` without an OpenXR loader) get a note that
+VrApi support is new; 32-bit-only VrApi builds are marked "32-bit, not supported".
+Downloaded and imported APKs are checked the same way.
 
 ## Verification
 

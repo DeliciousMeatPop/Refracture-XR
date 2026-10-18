@@ -195,7 +195,8 @@ const methods = {
   sync: async () => { const online = await syncInstalled(); const result = token ? await syncMeta() : null; return { online, meta: result }; },
   builds: id => store().builds(appId(id)).then(items => items.map(b => ({ id: String(b.id), version: b.version, code: b.version_code ?? b.versionCode }))),
   download: (id, binaryId) => downloadGame(appId(id), binaryId),
-  // Before a download: is the current Quest build an OpenXR game (runs) or a VrApi one (does not yet)? Reads only
+  // Before a download: is the current Quest build an OpenXR game, a VrApi one (runs, experimental) or a 32-bit VrApi
+  // one (does not run)? Reads only
   // the APK's zip directory from Meta's CDN. The answer is kept with the game.
   checkSdk: async id => {
     const game = getGame(appId(id)), api = store();

@@ -30,6 +30,9 @@ test('the VR SDK comes from the loader libraries; the OpenXR loader wins when bo
   assert.equal(vrSdk(['lib/arm64-v8a/libvrapi.so', 'lib/arm64-v8a/libopenxr_loader.so']), 'openxr');
   assert.equal(vrSdk(['lib/arm64-v8a/libUE4.so', 'lib/arm64-v8a/libopenxr_loader.so']), 'openxr');
   assert.equal(vrSdk(['assets/lib/arm64-v8a/libvrapi.so', 'lib/arm64-v8a/libgame.so']), 'unknown');
+  // VrApi builds with only 32-bit ARM code cannot run.
+  assert.equal(vrSdk(['lib/armeabi-v7a/libvrapi.so', 'lib/armeabi-v7a/libunity.so']), 'vrapi32');
+  assert.equal(vrSdk(['lib/armeabi-v7a/libvrapi.so', 'lib/arm64-v8a/libvrapi.so']), 'vrapi');
   assert.equal(vrSdk(), 'unknown');
 });
 

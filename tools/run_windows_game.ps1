@@ -271,7 +271,7 @@ try {
         $log = (Invoke-Adb @('logcat', '-d', "--pid=$gamePid") 20000).Text
         $crash = [regex]::Match($log, '(?m)(Fatal signal \d+.*|FATAL EXCEPTION.*|HandleFatalSignal: sig=\d+.*)$')
         if ($crash.Success -and $log -match 'VrApiLoader|VrApi Loader') {
-            throw "$GameName is built on Meta's older VrApi SDK, which Refract does not support yet (only OpenXR games run)."
+            throw "$GameName crashed: $($crash.Groups[1].Value.Trim()). It is built on Meta's older VrApi SDK, which Refract supports only experimentally."
         }
         if ($crash.Success) { throw "$GameName crashed: $($crash.Groups[1].Value.Trim())" }
         Write-Host "$GameName closed."

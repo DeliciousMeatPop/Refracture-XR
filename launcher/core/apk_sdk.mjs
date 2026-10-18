@@ -1,13 +1,14 @@
-// Which VR SDK a Quest APK is built on, from the native libraries it carries. Refract runs OpenXR games; games on
-// Meta's older VrApi SDK load libvrapi.so (the "VrApi Loader") and stop at start. Engines that support both ship
-// both loaders and pick OpenXR, so the OpenXR loader decides.
+// Which VR SDK a Quest APK is built on, from the native libraries it carries. Refract runs OpenXR games, and games on
+// Meta's older VrApi SDK (they load libvrapi.so, the "VrApi Loader") through its VrApi layer (android-runtime/vrapi),
+// which is newer. Engines that support both ship both loaders and pick OpenXR, so the OpenXR loader decides.
+// 'vrapi32': a VrApi build with only 32-bit ARM code, which Refract cannot run (it translates ARM64 only).
 import path from 'node:path';
 import { allowedDownload, fetchFile } from './download.mjs';
 
 export function vrSdk(names = []) {
   const libraries = new Set(names.filter(n => /^lib\/[^/]+\/[^/]+\.so$/.test(n)).map(n => path.posix.basename(n)));
   if ([...libraries].some(n => /^libopenxr_loader/.test(n))) return 'openxr';
-  if (libraries.has('libvrapi.so')) return 'vrapi';
+  if (libraries.has('libvrapi.so')) return names.some(n => n.startsWith('lib/arm64-v8a/')) ? 'vrapi' : 'vrapi32';
   return 'unknown';
 }
 

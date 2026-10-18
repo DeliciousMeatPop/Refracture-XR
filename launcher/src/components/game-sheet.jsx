@@ -72,7 +72,9 @@ export function GameSheet({ game, state, onClose, run, pending, setPage, notify,
             </div>
             <div className="sheet-actions">{primary}</div>
             {game.vrSdk === 'vrapi' && <div className="notice warn" role="note"><TriangleAlert />
-              <span>Built on Meta’s older VrApi SDK. Refract runs OpenXR games only, so this one stops when it starts.</span></div>}
+              <span>Built on Meta’s older VrApi SDK. Refract’s VrApi support is new: curved menus show flat, and videos and some other panels don’t show yet.</span></div>}
+            {game.vrSdk === 'vrapi32' && <div className="notice warn" role="note"><TriangleAlert />
+              <span>This build of the game is 32-bit. Refract runs 64-bit Quest games only, so this one stops when it starts.</span></div>}
             {checkable && sdkCheck === 'checking' && <div className="working" role="status"><Loader2 className="spin" />Checking whether this game runs on Refract…</div>}
             {working && <div className="working" role="status"><Loader2 className="spin" />Working…</div>}
 
