@@ -6,7 +6,7 @@ Refract runs Meta Quest (Android OpenXR) games on a Windows or Linux PC, in a PC
 window on the screen. Games run in one of three ways:
 
 - **Android Emulator** (Windows): the most compatible option.
-- **Refract Native** (Windows, experimental): runs the game's ARM64 code directly on the PC.
+- **Refract Native** (Windows, recommended): runs the game's ARM64 code directly on the PC.
 - **Waydroid** (Linux): a container that shares the PC's kernel and GPU.
 
 > **Status:** experimental. Not every game works yet.
@@ -20,21 +20,6 @@ on PC, a coffee on Ko-fi helps a lot.
 
 Not in a position to donate? Starring the repo, trying Refract with your games and reporting what
 breaks helps too.
-
-## How it works
-
-```text
-Quest game (Android Emulator, Refract Native or Waydroid)
-  -> Refract's Android OpenXR runtime
-  -> Refract viewer / host bridge on the PC
-  -> PC OpenXR runtime (SteamVR, Meta Horizon Link, Monado/WiVRn) -> headset
-```
-
-Eye images are shared on the GPU, and headset and controller poses go back to the game. ARM64-only
-games run through the Digitalis translator, or Refract Native's own ARM64 JIT.
-
-Older games built on Meta's VrApi SDK (before OpenXR) run through Refract's VrApi layer on top of the
-same runtime. This is experimental; see [docs/vrapi.md](docs/vrapi.md).
 
 ## Requirements
 
@@ -54,10 +39,6 @@ same runtime. This is experimental; see [docs/vrapi.md](docs/vrapi.md).
    or double-click **Refract Launcher.cmd** in a source checkout.
 2. In **Settings > Setup**, click each button until everything is green.
 3. Click **Connect Meta** to see the Quest games you own, then download, install and play.
-
-More in [launcher/README.md](launcher/README.md). To run the emulator by hand, see
-[docs/windows_nvidia_emulator.md](docs/windows_nvidia_emulator.md) and
-[docs/yeeps_setup.md](docs/yeeps_setup.md).
 
 ### Linux
 
