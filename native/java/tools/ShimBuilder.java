@@ -738,7 +738,7 @@ public class ShimBuilder {
         try {
             byte[] out = CF.transformClass(cm, ClassTransform.transformingMethodBodies(ct));
             return hasIndy(cm) ? out : fixReal(out);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
             // dex2jar output the stack map generator can't handle: drop stack maps and
             // mark the class version 50 so HotSpot verifies it by type inference.
             for (MethodModel m : cm.methods())
@@ -746,11 +746,76 @@ public class ShimBuilder {
                     for (CodeElement ce : m.code().get())
                         if (ce instanceof InvokeDynamicInstruction) throw e;
             ClassFile drop = ClassFile.of(ClassFile.StackMapsOption.DROP_STACK_MAPS);
-            return fixReal(drop.transformClass(drop.parse(stripStackMaps(bytes)), ClassTransform.transformingMethodBodies(ct).andThen((clb, ce) -> {
-                if (ce instanceof ClassFileVersion) clb.withVersion(52, 0);
-                else clb.with(ce);
-            })));
+            try {
+                return fixReal(drop.transformClass(drop.parse(stripStackMaps(bytes)), ClassTransform.transformingMethodBodies(ct).andThen((clb, ce) -> {
+                    if (ce instanceof ClassFileVersion) clb.withVersion(52, 0);
+                    else clb.with(ce);
+                })));
+            } catch (IllegalArgumentException | IndexOutOfBoundsException e2) {
+                // Even max_stack can't be computed (a branch target the ClassFile API never resolves,
+                // e.g. UE4's GameActivity): ASM rewrites without recomputing anything.
+                return fixReal(rewriteAppAsm(bytes));
+            }
         }
+    }
+
+    /** rewriteApp's call-site rewrites done with ASM, keeping max_stack/max_locals and dropping stack maps. */
+    static byte[] rewriteAppAsm(byte[] bytes) {
+        final int ASM9 = org.objectweb.asm.Opcodes.ASM9;
+        final String rt = "refract/Runtime", s2s = "(Ljava/lang/String;)Ljava/lang/String;";
+        org.objectweb.asm.ClassReader cr = new org.objectweb.asm.ClassReader(bytes);
+        org.objectweb.asm.ClassWriter cw = new org.objectweb.asm.ClassWriter(0);
+        cr.accept(new org.objectweb.asm.ClassVisitor(ASM9, cw) {
+            @Override
+            public org.objectweb.asm.MethodVisitor visitMethod(int acc, String n, String d, String sig, String[] ex) {
+                return new org.objectweb.asm.MethodVisitor(ASM9, super.visitMethod(acc, n, d, sig, ex)) {
+                    void hostPath(boolean second) {
+                        if (second) super.visitInsn(org.objectweb.asm.Opcodes.SWAP);
+                        super.visitMethodInsn(org.objectweb.asm.Opcodes.INVOKESTATIC, rt, "hostPath", s2s, false);
+                        if (second) super.visitInsn(org.objectweb.asm.Opcodes.SWAP);
+                        rewrites++;
+                    }
+
+                    @Override
+                    public void visitMethodInsn(int op, String owner, String name, String desc, boolean itf) {
+                        boolean load = name.equals("loadLibrary") || name.equals("load");
+                        if (owner.equals("java/lang/System") && load && desc.equals("(Ljava/lang/String;)V")) {
+                            super.visitMethodInsn(org.objectweb.asm.Opcodes.INVOKESTATIC, rt, name, desc, false);
+                            rewrites++;
+                            return;
+                        }
+                        if (owner.equals("java/lang/Runtime") && load && desc.equals("(Ljava/lang/String;)V")) {
+                            super.visitMethodInsn(org.objectweb.asm.Opcodes.INVOKESTATIC, rt,
+                                    "runtime" + Character.toUpperCase(name.charAt(0)) + name.substring(1),
+                                    "(Ljava/lang/Runtime;Ljava/lang/String;)V", false);
+                            rewrites++;
+                            return;
+                        }
+                        if (op == org.objectweb.asm.Opcodes.INVOKESTATIC
+                                && ((owner.equals("java/nio/file/Paths") && name.equals("get"))
+                                    || (owner.equals("java/nio/file/Path") && name.equals("of")))
+                                && desc.equals("(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;"))
+                            hostPath(true);
+                        if (op == org.objectweb.asm.Opcodes.INVOKESPECIAL && name.equals("<init>")) {
+                            switch (owner + desc) {
+                                case "java/io/File(Ljava/lang/String;)V",
+                                     "java/io/FileInputStream(Ljava/lang/String;)V",
+                                     "java/io/FileOutputStream(Ljava/lang/String;)V",
+                                     "java/io/FileReader(Ljava/lang/String;)V",
+                                     "java/io/FileWriter(Ljava/lang/String;)V" -> hostPath(false);
+                                case "java/io/File(Ljava/lang/String;Ljava/lang/String;)V",
+                                     "java/io/FileOutputStream(Ljava/lang/String;Z)V",
+                                     "java/io/FileWriter(Ljava/lang/String;Z)V",
+                                     "java/io/RandomAccessFile(Ljava/lang/String;Ljava/lang/String;)V" -> hostPath(true);
+                                default -> { }
+                            }
+                        }
+                        super.visitMethodInsn(op, owner, name, desc, itf);
+                    }
+                };
+            }
+        }, org.objectweb.asm.ClassReader.SKIP_FRAMES);
+        return cw.toByteArray();
     }
 
     static int framed;
@@ -929,6 +994,7 @@ public class ShimBuilder {
                         } catch (RuntimeException ex) {
                             System.err.println("warning: guest paths in " + e.getName()
                                     + " stay unmapped for java.io (" + ex.getMessage() + ")");
+                            if (Boolean.getBoolean("refract.trace")) ex.printStackTrace();
                         }
                     }
                     ClassModel cm = CF.parse(b);

@@ -130,7 +130,10 @@ def manifest(aapt2: Path, apk: Path) -> dict:
             names = [name_of(x) for x in f["children"]]
             if "android.intent.action.MAIN" in names and any(
                     n in names for n in ("android.intent.category.LAUNCHER", "com.oculus.intent.category.VR")):
-                launch = launch or a
+                if not launch:
+                    launch = a
+                    # queryIntentActivities answers for these (UE4 finds its VR mode by category.VR).
+                    info["activity_categories"] = [name_of(x) for x in f["children"] if x["tag"] == "category"]
     if launch:
         if not info["activity"]:
             n = name_of(launch)
@@ -252,6 +255,8 @@ def main() -> int:
     for key in ("theme", "activity_theme"):
         if info.get(key):
             props.append(f"{key.replace('_', '.')}={info[key]}")
+    if info.get("activity_categories"):
+        props.append("activity.categories=" + ",".join(info["activity_categories"]))
     props += [f"meta.{k}={v}" for k, v in sorted(info["meta"].items())]
     props += [f"activity.meta.{k}={v}" for k, v in sorted(info["activity_meta"].items())]
     (dest / "app.properties").write_text("\n".join(props) + "\n", encoding="utf-8")

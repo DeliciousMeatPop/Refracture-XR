@@ -149,7 +149,28 @@ public final class PackageManagerImpl extends PackageManager {
         l.add(packageInfo());
         return l;
     }
-    @Override public List<ResolveInfo> queryIntentActivities(Intent intent, int flags) { return new ArrayList<>(); }
+    /** The launch activity answers intents that match its MAIN filter (UE4 asks for com.oculus.intent.category.VR
+     *  to find out it is a VR app); nothing else is installed. */
+    @Override public List<ResolveInfo> queryIntentActivities(Intent intent, int flags) {
+        List<ResolveInfo> l = new ArrayList<>();
+        if (intent == null) return l;
+        ComponentName c = intent.getComponent();
+        String pkg = c != null ? c.getPackageName() : intent.getPackage();
+        if (pkg != null && !Runtime.PACKAGE.equals(pkg)) return l;
+        if (c != null && !Runtime.ACTIVITY.equals(c.getClassName())) return l;
+        if (c == null) {
+            if (intent.getAction() != null && !Intent.ACTION_MAIN.equals(intent.getAction())) return l;
+            List<String> filter = java.util.Arrays.asList(Manifest.get("activity.categories", "").split(","));
+            if (intent.getCategories() != null)
+                for (String cat : intent.getCategories())
+                    if (!filter.contains(cat)) return l;
+        }
+        ResolveInfo ri = new ResolveInfo();
+        ri.activityInfo = activityInfo(new ComponentName(Runtime.PACKAGE, Runtime.ACTIVITY));
+        ri.match = 0x108000;  // IntentFilter.MATCH_CATEGORY_EMPTY | MATCH_ADJUSTMENT_NORMAL
+        l.add(ri);
+        return l;
+    }
     @Override public List<ResolveInfo> queryIntentServices(Intent intent, int flags) { return new ArrayList<>(); }
     @Override public List<ResolveInfo> queryBroadcastReceivers(Intent intent, int flags) { return new ArrayList<>(); }
     @Override public ResolveInfo resolveActivity(Intent intent, int flags) { return null; }
@@ -164,11 +185,32 @@ public final class PackageManagerImpl extends PackageManager {
         if (!Runtime.PACKAGE.equals(pkg)) throw new NameNotFoundException(pkg);
         return new android.content.pm.InstallSourceInfo("com.oculus.ocms", null, "com.oculus.ocms");
     }
-    @Override public FeatureInfo[] getSystemAvailableFeatures() { return new FeatureInfo[0]; }
+    /** A Quest 2's features with versions (product/etc/permissions in the firmware dump). */
+    private static final Object[][] FEATURES = {
+        {"android.hardware.vulkan.version", 4198400}, {"android.hardware.vulkan.level", 1},
+        {"android.hardware.vulkan.compute", 0}, {"android.hardware.opengles.aep", 0},
+        {"android.hardware.vr.headtracking", 1}, {"android.hardware.vr.high_performance", 0},
+        {"android.hardware.wifi", 0}, {"android.hardware.audio.output", 0}, {"android.hardware.microphone", 0},
+        {"oculus.software.mic_sharing", 0}, {"oculus.software.xrsp", 0},
+    };
+
+    @Override public FeatureInfo[] getSystemAvailableFeatures() {
+        FeatureInfo[] r = new FeatureInfo[FEATURES.length + 1];
+        for (int i = 0; i < FEATURES.length; i++) {
+            r[i] = new FeatureInfo();
+            r[i].name = (String) FEATURES[i][0];
+            r[i].version = (Integer) FEATURES[i][1];
+        }
+        r[FEATURES.length] = new FeatureInfo();
+        r[FEATURES.length].reqGlEsVersion = 0x00030002;  // OpenGL ES 3.2, as ActivityManager reports
+        return r;
+    }
     @Override public CharSequence getApplicationLabel(ApplicationInfo info) { return Runtime.LABEL; }
 
     @Override public boolean hasSystemFeature(String name) { return hasSystemFeature(name, 0); }
     @Override public boolean hasSystemFeature(String name, int version) {
+        for (Object[] f : FEATURES)
+            if (f[0].equals(name)) return version <= (Integer) f[1];
         return name.startsWith("android.hardware.vr") || name.startsWith("oculus.") || name.startsWith("com.oculus")
                 || name.equals("android.hardware.vulkan.version") || name.equals("android.hardware.vulkan.level")
                 || name.equals("android.hardware.opengles.aep") || name.equals("android.hardware.wifi")

@@ -195,8 +195,11 @@ public class View {
     }
 
     public void setSystemUiVisibility(int visibility) {
+        // Like Android: listeners hear about changes only, later on the main thread (UE4's listener sets it again).
+        if (visibility == mSystemUiVisibility) return;
         mSystemUiVisibility = visibility;
-        if (mSystemUiListener != null) mSystemUiListener.onSystemUiVisibilityChange(visibility);
+        OnSystemUiVisibilityChangeListener l = mSystemUiListener;
+        if (l != null) mainHandler().post(() -> l.onSystemUiVisibilityChange(visibility));
     }
     public int getSystemUiVisibility() { return mSystemUiVisibility; }
     public void setOnSystemUiVisibilityChangeListener(OnSystemUiVisibilityChangeListener l) { mSystemUiListener = l; }

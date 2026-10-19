@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <atomic>
 #include <map>
 #include <mutex>
 // JNI between guest (ARM64) native code and the host JVM (HotSpot).
@@ -229,15 +230,42 @@ void DecodeArgs(const ParsedSig& sig, jvalue* out, IntFn next_int, DblFn next_do
 }
 
 jmethodID g_find_library_mid = nullptr;  // ClassLoader.findLibrary: the JVM's loader knows nothing of the app's .so files
-jmethodID g_load_class_mid = nullptr;    // ClassLoader.loadClass: ART accepts "a/b/C" names, HotSpot only "a.b.C"
+// A few method IDs checked on every JNI call: lock-free reads.
+struct MethodSet {
+    std::atomic<jmethodID> slots[16] = {};
+    void Add(jmethodID m) {
+        for (auto& s : slots) {
+            jmethodID cur = s.load();
+            if (cur == m)
+                return;
+            if (!cur && s.compare_exchange_strong(cur, m))
+                return;
+            if (cur == m)
+                return;
+        }
+    }
+    bool Has(jmethodID m) const {
+        for (const auto& s : slots) {
+            jmethodID cur = s.load(std::memory_order_relaxed);
+            if (!cur)
+                return false;
+            if (cur == m)
+                return true;
+        }
+        return false;
+    }
+};
+// ClassLoader.loadClass/findClass (UE4 calls findClass; each lookup can give its own ID): ART accepts "a/b/C" names, HotSpot only "a.b.C"
+MethodSet g_load_class_mids;
 jmethodID g_process_start_mid = nullptr; // ProcessBuilder.start: Android tools (logcat) are not on the PC
+MethodSet g_quit_mids;  // calls that end the app: their guest backtrace is logged
 std::mutex g_mid_names_mu;
 std::map<jmethodID, std::string> g_mid_names;
 void NoteName(jmethodID m, const char* name, const char* sig) {
     if (m && !strcmp(name, "findLibrary"))
         g_find_library_mid = m;
-    if (m && !strcmp(name, "loadClass") && !strcmp(sig, "(Ljava/lang/String;)Ljava/lang/Class;"))
-        g_load_class_mid = m;
+    if (m && (!strcmp(name, "loadClass") || !strcmp(name, "findClass")) && !strcmp(sig, "(Ljava/lang/String;)Ljava/lang/Class;"))
+        g_load_class_mids.Add(m);
     if (m && !strcmp(name, "start") && !strcmp(sig, "()Ljava/lang/Process;"))
         g_process_start_mid = m;
     // Native code quitting the app explains an otherwise silent exit.
@@ -247,6 +275,9 @@ void NoteName(jmethodID m, const char* name, const char* sig) {
             Log("JNI lookup of %s%s by guest thread %d at %s", name, sig, t ? t->tid : 0,
                 t ? DescribeAddress(t->cpu->X(30)).c_str() : "?");
         }
+    // UE4 looks its quit thunk up at startup; log where it is called from instead.
+    if (m && (strstr(name, "ForceQuit") || !strcmp(name, "exit") || !strcmp(name, "halt") || !strcmp(name, "killProcess")))
+        g_quit_mids.Add(m);
     if (g_verbose < 3 || !m)
         return;
     std::lock_guard lk(g_mid_names_mu);
@@ -280,6 +311,12 @@ void JniCallInner(GuestThread* t) {
     jmethodID mid = reinterpret_cast<jmethodID>(rd.NextInt());
     if (g_verbose >= 3)
         Log("JNI call %s tid %d", NameOf(mid).c_str(), t->tid);
+    if (g_quit_mids.Has(mid)) {
+        std::string name, sig;
+        JavaMethodName(Env(), mid, &name, &sig);
+        Log("guest thread %d calls %s%s to quit:", t->tid, name.c_str(), sig.c_str());
+        LogThreadSample(t, -1);
+    }
     jvalue buf[256];
     const jvalue* args = buf;
     if constexpr (F == kArray) {
@@ -320,19 +357,21 @@ void JniCallInner(GuestThread* t) {
                                                                                : nullptr);
             return;
         }
-        if (K == kVirtual && mid == g_load_class_mid && g_load_class_mid && args[0].l) {
+        // The method first: a call without arguments may pass no argument array at all.
+        if (K == kVirtual && g_load_class_mids.Has(mid) && args[0].l) {
+            // Always through loadClass: HotSpot's findClass defines the class again even when it is loaded.
+            static jmethodID load_class = e->GetMethodID(e->FindClass("java/lang/ClassLoader"), "loadClass",
+                                                         "(Ljava/lang/String;)Ljava/lang/Class;");
             const char* n = e->GetStringUTFChars(static_cast<jstring>(args[0].l), nullptr);
             std::string dotted = n ? n : "";
             if (n)
                 e->ReleaseStringUTFChars(static_cast<jstring>(args[0].l), n);
-            if (dotted.find('/') != std::string::npos) {
-                std::replace(dotted.begin(), dotted.end(), '/', '.');
-                jvalue a{};
-                a.l = e->NewStringUTF(dotted.c_str());
-                SetReturn(t, e->CallObjectMethodA(obj, mid, &a));
-                e->DeleteLocalRef(a.l);
-                return;
-            }
+            std::replace(dotted.begin(), dotted.end(), '/', '.');
+            jvalue a{};
+            a.l = e->NewStringUTF(dotted.c_str());
+            SetReturn(t, e->CallObjectMethodA(obj, load_class, &a));
+            e->DeleteLocalRef(a.l);
+            return;
         }
         if (K == kVirtual && mid == g_process_start_mid && g_process_start_mid) {
             static jclass runtime = static_cast<jclass>(e->NewGlobalRef(e->FindClass("refract/Runtime")));

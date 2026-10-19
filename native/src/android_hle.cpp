@@ -19,6 +19,8 @@
 #include "files.h"
 #include "host_runtime.h"
 #include "jni_bridge.h"
+#include "linux_abi.h"
+#include "memory.h"
 #include "net.h"
 #include "thunks.h"
 
@@ -528,6 +530,130 @@ jlong JNICALL N_looperPrepare(JNIEnv*, jclass) {
 jint JNICALL N_looperPollOnce(JNIEnv*, jclass, jlong, jint timeout_ms) { return A_ALooper_pollOnce(timeout_ms, 0, 0, 0); }
 void JNICALL N_looperWake(JNIEnv*, jclass, jlong looper) { A_ALooper_wake(reinterpret_cast<HostLooper*>(looper)); }
 
+// refract.app.NativeActivityHost (the shim's android.app.NativeActivity): the ANativeActivity that
+// android_app_NativeActivity.cpp hands the library, in guest memory, with its callbacks called on the Java
+// thread that drives the activity, as on Android. UE4 games start android_main this way.
+namespace {
+
+struct GuestNativeActivity {
+    u64 callbacks, vm, env, clazz, internal_data_path, external_data_path;
+    s32 sdk_version, pad;
+    u64 instance, asset_manager, obb_path;
+};
+static_assert(sizeof(GuestNativeActivity) == 80);
+constexpr int kNativeActivityCallbacks = 16;  // ANativeActivityCallbacks: onStart .. onLowMemory
+constexpr int kOnNativeWindowCreated = 7, kOnNativeWindowDestroyed = 10;
+std::mutex g_activity_mu;
+std::map<u64, void*> g_activity_windows;  // ANativeActivity -> ANativeWindow given to it
+
+std::string JavaString(JNIEnv* env, jstring s) {
+    if (!s)
+        return {};
+    const char* c = env->GetStringUTFChars(s, nullptr);
+    std::string r = c ? c : "";
+    env->ReleaseStringUTFChars(s, c);
+    return r;
+}
+
+u64 NativeActivityCallback(u64 activity, int index) {
+    GuestNativeActivity a;
+    u64 fn = 0;
+    if (index < 0 || index >= kNativeActivityCallbacks || !SafeCopyFromGuest(&a, activity, sizeof(a)) ||
+        !SafeCopyFromGuest(&fn, a.callbacks + index * 8ull, 8))
+        return 0;
+    return fn;
+}
+
+}  // namespace
+
+jlong JNICALL N_activityCreate(JNIEnv* env, jclass, jstring lib, jstring func, jobject activity, jstring internal,
+                               jstring obb, jstring external, jint sdk, jobject assets, jbyteArray saved) {
+    const std::string lib_path = JavaString(env, lib), func_name = JavaString(env, func);
+    GuestThread* t = EnsureGuestThread();
+    const u64 handle = GuestDlopen(lib_path);
+    const u64 create = handle ? GuestDlsym(handle, func_name.c_str()) : 0;
+    if (!create) {
+        Log("NativeActivity: %s not found in %s", func_name.c_str(), lib_path.c_str());
+        return 0;
+    }
+    const jsize saved_len = saved ? env->GetArrayLength(saved) : 0;
+    const u64 size = (64 * 1024 + saved_len + 0xffff) & ~0xffffull;
+    const s64 area = Mem().Map(0, size, lx::PROT_READ_ | lx::PROT_WRITE_, lx::MAP_PRIVATE_ | lx::MAP_ANONYMOUS_, nullptr,
+                               0, "[refract:native-activity]");
+    if (area < 0)
+        return 0;
+    // Layout: ANativeActivity, its callbacks table (zeroed: the library fills it in), strings, saved state.
+    const u64 base = static_cast<u64>(area);
+    u64 next = base + sizeof(GuestNativeActivity) + kNativeActivityCallbacks * 8;
+    auto put = [&](const void* p, size_t n) {
+        const u64 at = next;
+        SafeCopyToGuest(at, p, n);
+        next = (next + n + 15) & ~15ull;
+        return at;
+    };
+    auto put_str = [&](jstring s) -> u64 {
+        if (!s)
+            return 0;
+        const std::string v = JavaString(env, s);
+        return put(v.c_str(), v.size() + 1);
+    };
+    GuestNativeActivity a{};
+    a.callbacks = base + sizeof(GuestNativeActivity);
+    a.vm = GuestJavaVm();
+    a.env = GuestJniEnv(t);
+    a.clazz = reinterpret_cast<u64>(env->NewGlobalRef(activity));
+    a.internal_data_path = put_str(internal);
+    a.external_data_path = put_str(external);
+    a.sdk_version = sdk;
+    a.asset_manager = reinterpret_cast<u64>(A_AAssetManager_fromJava(0, assets));
+    a.obb_path = put_str(obb);
+    SafeCopyToGuest(base, &a, sizeof(a));
+    u64 saved_ptr = 0;
+    if (saved_len > 0) {
+        std::vector<jbyte> bytes(saved_len);
+        env->GetByteArrayRegion(saved, 0, saved_len, bytes.data());
+        saved_ptr = put(bytes.data(), bytes.size());
+    }
+    RN_INFO("NativeActivity: %s!%s", lib_path.c_str(), func_name.c_str());
+    CallGuest(t, create, {base, saved_ptr, static_cast<u64>(saved_len)});
+    return static_cast<jlong>(base);
+}
+
+// Callbacks taking (activity) or (activity, int): onStart, onResume, onPause, onStop, onDestroy,
+// onWindowFocusChanged, onConfigurationChanged, onLowMemory.
+void JNICALL N_activityCallback(JNIEnv*, jclass, jlong activity, jint index, jint arg) {
+    if (const u64 fn = NativeActivityCallback(static_cast<u64>(activity), index))
+        CallGuest(EnsureGuestThread(), fn, {static_cast<u64>(activity), static_cast<u64>(static_cast<s64>(arg))});
+}
+
+// onNativeWindowCreated / Resized / RedrawNeeded / Destroyed with the activity's ANativeWindow.
+void JNICALL N_activityWindow(JNIEnv*, jclass, jlong activity, jint index, jobject surface) {
+    const u64 act = static_cast<u64>(activity);
+    void* window = nullptr;
+    {
+        std::lock_guard lock(g_activity_mu);
+        auto it = g_activity_windows.find(act);
+        if (index == kOnNativeWindowCreated) {
+            if (it != g_activity_windows.end())
+                return;
+            window = surface ? A_ANativeWindow_fromSurface(0, surface) : nullptr;
+            if (!window)
+                return;
+            g_activity_windows[act] = window;
+        } else {
+            if (it == g_activity_windows.end())
+                return;
+            window = it->second;
+            if (index == kOnNativeWindowDestroyed)
+                g_activity_windows.erase(it);
+        }
+    }
+    if (const u64 fn = NativeActivityCallback(act, index))
+        CallGuest(EnsureGuestThread(), fn, {act, reinterpret_cast<u64>(window)});
+    if (index == kOnNativeWindowDestroyed)
+        A_ANativeWindow_release(window);
+}
+
 bool RegisterAndroidNatives(JNIEnv* env) {
     jclass c = env->FindClass("refract/view/NativeWindows");
     if (!c)
@@ -544,7 +670,21 @@ bool RegisterAndroidNatives(JNIEnv* env) {
         {const_cast<char*>("pollOnce"), const_cast<char*>("(JI)I"), reinterpret_cast<void*>(&N_looperPollOnce)},
         {const_cast<char*>("wake"), const_cast<char*>("(J)V"), reinterpret_cast<void*>(&N_looperWake)},
     };
-    return env->RegisterNatives(l, lm, sizeof(lm) / sizeof(lm[0])) == JNI_OK;
+    if (env->RegisterNatives(l, lm, sizeof(lm) / sizeof(lm[0])) != JNI_OK)
+        return false;
+    jclass na = env->FindClass("refract/app/NativeActivityHost");
+    if (!na)
+        return false;
+    JNINativeMethod nm[] = {
+        {const_cast<char*>("create"),
+         const_cast<char*>("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;"
+                           "Ljava/lang/String;ILjava/lang/Object;[B)J"),
+         reinterpret_cast<void*>(&N_activityCreate)},
+        {const_cast<char*>("callback"), const_cast<char*>("(JII)V"), reinterpret_cast<void*>(&N_activityCallback)},
+        {const_cast<char*>("window"), const_cast<char*>("(JILjava/lang/Object;)V"),
+         reinterpret_cast<void*>(&N_activityWindow)},
+    };
+    return env->RegisterNatives(na, nm, sizeof(nm) / sizeof(nm[0])) == JNI_OK;
 }
 
 void RegisterAndroidHle() {
