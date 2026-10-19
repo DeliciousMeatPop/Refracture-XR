@@ -12,6 +12,7 @@ import { run } from './runtime.mjs';
 
 const REPOSITORY = 'https://dl.google.com/android/repository/';
 const exists = file => fs.access(file).then(() => true, () => false);
+const linux = process.platform === 'linux';
 const property = async (file, key) => (await fs.readFile(file, 'utf8').catch(() => '')).match(new RegExp(`^${key.replace('.', '\\.')}=(.*)$`, 'm'))?.[1]?.trim();
 
 // Checksums and sizes are the ones Google's repository lists for each archive (repository2-3.xml, sys-img2-3.xml).
@@ -19,15 +20,32 @@ export const androidPackages = [
   { id: 'platform-tools', label: 'Android platform tools', file: 'platform-tools_r37.0.1-win.zip', sha1: 'e03e78b1d80b396f1c3358e31251cb31740e1110', size: 8044989,
     dir: 'platform-tools', ready: sdk => exists(path.join(sdk, 'platform-tools/adb.exe')) },
   { id: 'build-tools', label: 'Android build tools 36', file: 'build-tools_r36_windows.zip', sha1: 'f16ccffd34de8790dede813a6c7d8e2c11a27b50', size: 58699878,
-    dir: 'build-tools/36.0.0', ready: async sdk => {
-      const versions = await fs.readdir(path.join(sdk, 'build-tools')).catch(() => []);
-      return (await Promise.all(versions.map(v => exists(path.join(sdk, 'build-tools', v, 'aapt2.exe'))))).some(Boolean);
-    } },
+    dir: 'build-tools/36.0.0', ready: async sdk => !!await sdkAapt2(sdk) },
   { id: 'emulator', label: 'Android Emulator 37.1.11', file: 'emulator-windows_x64-15917651.zip', sha1: '54fa750822ff462d57e04fc8e98e60f08df2bb61', size: 441926448,
     dir: 'emulator', ready: async sdk => await property(path.join(sdk, 'emulator/source.properties'), 'Pkg.BuildId') === '15917651' },
   { id: 'image', label: 'Android 16 system image', file: 'sys-img/google_apis/x86_64-36_r07.zip', sha1: 'c6bf44bdcd885bb902b4ba752d111a073ad7a817', size: 1895447397,
     dir: 'system-images/android-36/google_apis/x86_64', ready: async sdk => await property(path.join(sdk, 'system-images/android-36/google_apis/x86_64/source.properties'), 'Pkg.Revision') === '7' },
 ];
+
+// Linux reads game packages with the same tools (launcher/inspect_apk.py), from Google's Linux archive.
+const linuxBuildTools = { id: 'build-tools', label: 'Android build tools 36', file: 'build-tools_r36_linux.zip', sha1: 'b0b6376977657e8ad9b969bacf4093601da2c6fb', size: 63737259,
+  dir: 'build-tools/36.0.0' };
+
+// aapt2 in <sdk>/build-tools/<version>/, newest version first, or ''.
+export async function sdkAapt2(sdk) {
+  const name = linux ? 'aapt2' : 'aapt2.exe';
+  const versions = (await fs.readdir(path.join(sdk || '', 'build-tools')).catch(() => []))
+    .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+  for (const version of versions) if (await exists(path.join(sdk, 'build-tools', version, name))) return path.join(sdk, 'build-tools', version, name);
+  return '';
+}
+// The SDK's aapt2, or on Linux one from the PATH (Arch's android-sdk-build-tools, Debian's aapt), or ''.
+export async function findAapt2(sdk) {
+  const found = await sdkAapt2(sdk);
+  if (found || !linux) return found;
+  for (const dir of (process.env.PATH || '').split(':')) if (dir && await exists(path.join(dir, 'aapt2'))) return path.join(dir, 'aapt2');
+  return '';
+}
 
 // Refract Native takes its Android system files (libc, linker, runtime libraries) from Google's stock ARM64 image.
 export const nativeImage = { id: 'native-image', label: 'Android 14 ARM64 system files', file: 'sys-img/android/arm64-v8a-34_r04.zip', sha1: 'd9f2011131919abe952814e041f16f317242c3fa', size: 705115396,
@@ -120,13 +138,22 @@ async function download(sdk, item, progress) {
   }
 }
 
-// Unpacks an archive (Windows' tar reads zip) and moves its single top folder to <sdk>\<item.dir>.
+// Python's zipfile drops Unix permissions; aapt2 and the other tools must stay executable.
+const UNZIP = `import os, sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z:
+    for info in z.infolist():
+        target = z.extract(info, sys.argv[2])
+        mode = info.external_attr >> 16
+        if mode & 0o111: os.chmod(target, mode & 0o777)`;
+
+// Unpacks an archive (Windows' tar reads zip; Linux uses Python, which the launcher needs anyway) and moves its single top folder to <sdk>\<item.dir>.
 async function extract(sdk, item, zip, progress) {
   progress(`Unpacking ${item.label}`);
   const staging = path.join(sdk, '.refract-downloads', `${item.id}.unpack`);
   await fs.rm(staging, { recursive: true, force: true });
   await fs.mkdir(staging, { recursive: true });
-  await run(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/tar.exe'), ['-xf', zip, '-C', staging], { timeout: 30 * 60 * 1000 });
+  if (linux) await run('python3', ['-c', UNZIP, zip, staging], { timeout: 30 * 60 * 1000 });
+  else await run(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/tar.exe'), ['-xf', zip, '-C', staging], { timeout: 30 * 60 * 1000 });
   const entries = await fs.readdir(staging);
   if (entries.length !== 1) throw new Error(`${item.label} has an unexpected layout.`);
   const target = path.join(sdk, item.dir);
@@ -144,11 +171,11 @@ export async function missingAndroid(sdk) {
   return missing;
 }
 
-// Refract Native needs only aapt2 (it reads each game's manifest), not the emulator.
+// Refract Native (and Linux) needs only aapt2 (it reads each game's manifest), not the emulator.
 export async function installBuildTools(sdk, progress = () => {}) {
-  const item = androidPackages.find(p => p.id === 'build-tools');
+  const item = linux ? linuxBuildTools : androidPackages.find(p => p.id === 'build-tools');
   await fs.mkdir(sdk, { recursive: true });
-  if (!await item.ready(sdk)) await extract(sdk, item, await download(sdk, item, progress), progress);
+  if (!await sdkAapt2(sdk)) await extract(sdk, item, await download(sdk, item, progress), progress);
   await fs.rm(path.join(sdk, '.refract-downloads'), { recursive: true, force: true });
 }
 

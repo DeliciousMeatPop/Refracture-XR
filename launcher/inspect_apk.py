@@ -1,5 +1,5 @@
 """Read APK identity with Android SDK tools; never install or modify the APK."""
-import argparse, base64, json, os, re, subprocess, zipfile
+import argparse, base64, json, os, re, shutil, subprocess, zipfile
 from pathlib import Path
 
 MAIN = 'android.intent.action.MAIN'
@@ -55,9 +55,12 @@ def launch_activity(root, package):
 
 def inspect(apk, sdk):
     versions = [p for p in (sdk / 'build-tools').glob('*/aapt2.exe' if os.name == 'nt' else '*/aapt2')]
-    if not versions:
-        raise RuntimeError('Android SDK build-tools (aapt2) are required')
-    tool = max(versions, key=lambda p: tuple(int(x) for x in re.findall(r'\d+', p.parent.name)))
+    if versions:
+        tool = max(versions, key=lambda p: tuple(int(x) for x in re.findall(r'\d+', p.parent.name)))
+    elif os.name != 'nt' and shutil.which('aapt2'):  # Linux distributions package aapt2 outside the SDK.
+        tool = shutil.which('aapt2')
+    else:
+        raise RuntimeError('Android SDK build-tools (aapt2) are required. Open Settings > Setup to download them.')
     if not zipfile.is_zipfile(apk):
         raise RuntimeError(f'{apk.name} is not an APK file')
     with zipfile.ZipFile(apk) as archive:

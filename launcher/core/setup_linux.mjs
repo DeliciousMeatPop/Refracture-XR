@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { run } from './runtime.mjs';
 import { activeOpenXr, findAdb, openXrName, waydroidPackages } from './waydroid.mjs';
+import { findAapt2, installBuildTools } from './android_sdk.mjs';
 
 const exists = file => fs.access(file).then(() => true, () => false);
 const jdk = () => process.env.JAVA_HOME || path.join(os.homedir(), 'Android/jdk-21');
@@ -20,6 +21,15 @@ async function adb(settings) {
   const file = await findAdb(settings.sdk);
   return file ? { ...check, ok: true, detail: file }
     : { ...check, ok: false, detail: 'adb was not found. Install android-tools (Fedora), adb (Debian/Ubuntu) or the Android SDK platform-tools.' };
+}
+
+// Importing a game reads its manifest with aapt2 (launcher/inspect_apk.py).
+async function buildTools(settings) {
+  const check = { id: 'buildtools', title: 'Android build tools' };
+  const file = await findAapt2(settings.sdk);
+  return file ? { ...check, ok: true, detail: file }
+    : { ...check, ok: false, detail: `Refract reads game packages with aapt2 from the Android build tools, which are not in ${settings.sdk}.`,
+      fix: { action: 'buildTools', label: 'Download', note: 'Downloads Android build tools (about 64 MB) from Google. Downloading accepts the Android SDK License Agreement (developer.android.com/studio/terms).' } };
 }
 
 // scripts/waydroid.sh check lists what is missing; its "[--]" lines are information, only "[missing]" lines count.
@@ -62,13 +72,15 @@ async function openxr() {
 }
 
 export async function checkSetupLinux(root, settings) {
-  const [py, tools, android, parts, xr] = await Promise.all([python(), adb(settings), waydroid(root), built(root), openxr()]);
-  return [py, tools, android, parts, xr];
+  const [py, tools, aapt2, android, parts, xr] = await Promise.all([python(), adb(settings), buildTools(settings), waydroid(root), built(root), openxr()]);
+  return [py, tools, aapt2, android, parts, xr];
 }
 
 export async function fixSetupLinux(root, settings, action, progress = () => {}) {
   const long = { timeout: 60 * 60 * 1000, cwd: root, onOutput: text => { const line = text.trim().split(/\r?\n/).pop(); if (line) progress(line.slice(0, 120)); } };
   switch (action) {
+    case 'buildTools':
+      await installBuildTools(settings.sdk, progress); return;
     case 'waydroid':
       // pkexec shows the desktop's password dialog; setup needs to know whose Waydroid data to set up.
       await run('pkexec', ['env', `SUDO_USER=${os.userInfo().username}`, path.join(root, 'scripts/waydroid.sh'), 'setup'], long); return;
