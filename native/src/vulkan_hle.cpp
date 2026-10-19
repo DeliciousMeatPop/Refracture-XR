@@ -11,12 +11,15 @@
 #include <vulkan/vulkan.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <mutex>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "android_hle.h"
+#include "spirv_patch.h"
 #include "thunks.h"
 #include "vulkan_hle.h"
 
@@ -24,6 +27,7 @@ namespace rn {
 
 void ForgetVulkanInstance(VkInstance instance);
 void AddTextureEmulationThunks(std::map<std::string, ThunkFn>& m);
+void AddCheckpointThunks(std::map<std::string, ThunkFn>& m);
 
 namespace {
 
@@ -117,6 +121,18 @@ VkResult WriteProperties(const std::vector<VkExtensionProperties>& v, uint32_t* 
 }
 
 // Temporarily unlinks pNext entries the host must not see.
+// A device was created with VK_EXT_fragment_density_map (render passes keep their FDM attachments then).
+std::atomic<bool> g_fdm_enabled{false};
+// REFRACT_VK_FAULT=1: VK_EXT_device_fault on, and what the driver knows is logged when a submit loses the device.
+std::atomic<VkDevice> g_fault_device{VK_NULL_HANDLE};
+bool FaultReporting() {
+    static const bool on = [] {
+        char v[8] = {};
+        return GetEnvironmentVariableA("REFRACT_VK_FAULT", v, sizeof(v)) && v[0] == '1';
+    }();
+    return on;
+}
+
 struct ChainSplice {
     struct Saved {
         VkBaseOutStructure* prev;
@@ -254,16 +270,65 @@ VkResult VulkanCreateDeviceTranslated(VkPhysicalDevice pd, const VkDeviceCreateI
         }
         exts.push_back(e);
     }
+    // Quest drivers always have multiview on: UE4's Oculus renderer uses multiview render passes and shaders
+    // without enabling VK_KHR_multiview or the feature (VrApi didn't ask for it), which lost the device on NVIDIA.
+    VkPhysicalDeviceMultiviewFeatures multiview{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES};
+    multiview.multiview = VK_TRUE;
+    bool multiview_set = false;
+    if (host.count(VK_KHR_MULTIVIEW_EXTENSION_NAME)) {
+        if (std::none_of(exts.begin(), exts.end(), [](const char* e) { return !strcmp(e, VK_KHR_MULTIVIEW_EXTENSION_NAME); }))
+            exts.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
+        for (auto* n = static_cast<const VkBaseInStructure*>(ci->pNext); n; n = n->pNext) {
+            if (n->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES) {
+                reinterpret_cast<VkPhysicalDeviceMultiviewFeatures*>(const_cast<VkBaseInStructure*>(n))->multiview = VK_TRUE;
+                multiview_set = true;
+            } else if (n->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES) {
+                reinterpret_cast<VkPhysicalDeviceVulkan11Features*>(const_cast<VkBaseInStructure*>(n))->multiview = VK_TRUE;
+                multiview_set = true;
+            }
+        }
+    }
     VkDeviceCreateInfo c = *ci;
     c.enabledExtensionCount = static_cast<uint32_t>(exts.size());
     c.ppEnabledExtensionNames = exts.data();
     c.enabledLayerCount = 0;
     c.ppEnabledLayerNames = nullptr;
-    DeviceFeatureFix fix(&c);
+    if (host.count(VK_KHR_MULTIVIEW_EXTENSION_NAME) && !multiview_set) {
+        multiview.pNext = const_cast<void*>(c.pNext);
+        c.pNext = &multiview;
+    }
+    VkPhysicalDeviceFaultFeaturesEXT fault{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT};
+    const bool fault_on = FaultReporting() && host.count(VK_EXT_DEVICE_FAULT_EXTENSION_NAME);
+    if (fault_on) {
+        exts.push_back(VK_EXT_DEVICE_FAULT_EXTENSION_NAME);
+        c.enabledExtensionCount = static_cast<uint32_t>(exts.size());
+        c.ppEnabledExtensionNames = exts.data();
+        fault.deviceFault = VK_TRUE;
+        fault.deviceFaultVendorBinary = VK_FALSE;
+        fault.pNext = const_cast<void*>(c.pNext);
+        c.pNext = &fault;
+    }
+    if (CheckpointsEnabled() && host.count(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME) &&
+        std::none_of(exts.begin(), exts.end(),
+                     [](const char* e) { return !strcmp(e, VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME); })) {
+        exts.push_back(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
+        c.enabledExtensionCount = static_cast<uint32_t>(exts.size());
+        c.ppEnabledExtensionNames = exts.data();
+    }
+    DeviceFeatureFix fix(&c, pd);
     VkResult r = create(pd, &c, nullptr, out);
-    if (r == VK_SUCCESS)
+    if (r == VK_SUCCESS) {
         NoteVulkanDevice(*out, pd);
-    RN_INFO("vkCreateDevice(%u extensions) = %d", c.enabledExtensionCount, r);
+        if (fault_on)
+            g_fault_device = *out;
+        for (const char* e : exts)
+            if (!strcmp(e, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME))
+                g_fdm_enabled = true;
+    }
+    std::string names;
+    for (const char* e : exts)
+        names += std::string(names.empty() ? "" : " ") + e;
+    RN_INFO("vkCreateDevice(%u extensions: %s) = %d", c.enabledExtensionCount, names.c_str(), r);
     return r;
 }
 
@@ -283,6 +348,143 @@ VkResult VKAPI_CALL H_vkCreateAndroidSurfaceKHR(VkInstance instance, const VkAnd
     w.hinstance = GetModuleHandleW(nullptr);
     w.hwnd = hwnd;
     return create(instance, &w, nullptr, surface);
+}
+
+void ReportDeviceFault(const char* what) {
+    VkDevice device = g_fault_device;
+    auto info_fn = Fn<PFN_vkGetDeviceFaultInfoEXT>("vkGetDeviceFaultInfoEXT");
+    if (!device || !info_fn)
+        return;
+    VkDeviceFaultCountsEXT counts{VK_STRUCTURE_TYPE_DEVICE_FAULT_COUNTS_EXT};
+    if (info_fn(device, &counts, nullptr) != VK_SUCCESS && counts.addressInfoCount == 0 && counts.vendorInfoCount == 0) {
+        Log("%s lost the device; no fault info", what);
+        return;
+    }
+    std::vector<VkDeviceFaultAddressInfoEXT> addrs(counts.addressInfoCount);
+    std::vector<VkDeviceFaultVendorInfoEXT> vendor(counts.vendorInfoCount);
+    counts.vendorBinarySize = 0;
+    VkDeviceFaultInfoEXT info{VK_STRUCTURE_TYPE_DEVICE_FAULT_INFO_EXT};
+    info.pAddressInfos = addrs.data();
+    info.pVendorInfos = vendor.data();
+    VkResult r = info_fn(device, &counts, &info);
+    Log("%s lost the device (fault info %d): %s", what, r, info.description);
+    static const char* kinds[] = {"none", "read invalid", "write invalid", "execute invalid",
+                                  "instruction pointer unknown", "instruction pointer invalid",
+                                  "instruction pointer fault"};
+    for (const auto& a : addrs)
+        Log("  address 0x%llx (+-0x%llx): %s", static_cast<unsigned long long>(a.reportedAddress),
+            static_cast<unsigned long long>(a.addressPrecision), a.addressType < 7 ? kinds[a.addressType] : "?");
+    for (const auto& v : vendor)
+        Log("  vendor: %s (code 0x%llx, data 0x%llx)", v.description, static_cast<unsigned long long>(v.vendorFaultCode),
+            static_cast<unsigned long long>(v.vendorFaultData));
+}
+
+VkResult VKAPI_CALL H_vkQueueSubmit(VkQueue queue, uint32_t n, const VkSubmitInfo* submits, VkFence fence) {
+    VkResult r = Fn<PFN_vkQueueSubmit>("vkQueueSubmit")(queue, n, submits, fence);
+    if (r == VK_ERROR_DEVICE_LOST)
+        ReportDeviceFault("vkQueueSubmit");
+    CheckpointDeviceLost(r, "vkQueueSubmit");
+    return r;
+}
+
+VkResult VKAPI_CALL H_vkQueueSubmit2(VkQueue queue, uint32_t n, const VkSubmitInfo2* submits, VkFence fence) {
+    VkResult r = Fn<PFN_vkQueueSubmit2>("vkQueueSubmit2")(queue, n, submits, fence);
+    if (r == VK_ERROR_DEVICE_LOST)
+        ReportDeviceFault("vkQueueSubmit2");
+    CheckpointDeviceLost(r, "vkQueueSubmit2");
+    return r;
+}
+
+// Quest shaders may read function variables before writing them (Adreno zero-initializes them): see spirv_patch.cpp.
+VkResult VKAPI_CALL H_vkCreateShaderModule(VkDevice device, const VkShaderModuleCreateInfo* ci,
+                                           const VkAllocationCallbacks*, VkShaderModule* out) {
+    auto create = Fn<PFN_vkCreateShaderModule>("vkCreateShaderModule");
+    std::vector<uint32_t> patched;
+    uint32_t count = 0;
+    VkShaderModuleCreateInfo c = *ci;
+    if (ZeroInitFunctionVariables(ci->pCode, ci->codeSize / 4, &patched, &count)) {
+        c.pCode = patched.data();
+        c.codeSize = patched.size() * 4;
+        static std::atomic<uint32_t> modules{0}, variables{0};
+        const uint32_t m = ++modules, v = variables += count;
+        if (m == 1 || (m & (m - 1)) == 0)
+            RN_INFO("SPIR-V: zero-initialized %u function variable(s) in %u shader module(s) so far", v, m);
+    }
+    VkResult r = create(device, &c, nullptr, out);
+    if (r == VK_SUCCESS)
+        CheckpointShaderModule(reinterpret_cast<unsigned long long>(*out), c.pCode, c.codeSize);
+    return r;
+}
+
+// Pipelines compile when the game creates them (UE4: at first use, mid-frame); slow ones are logged as the
+// likely cause of hitches.
+VkResult VKAPI_CALL H_vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache cache, uint32_t n,
+                                                const VkGraphicsPipelineCreateInfo* infos,
+                                                const VkAllocationCallbacks*, VkPipeline* out) {
+    const auto start = std::chrono::steady_clock::now();
+    VkResult r = Fn<PFN_vkCreateGraphicsPipelines>("vkCreateGraphicsPipelines")(device, cache, n, infos, nullptr, out);
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    static std::atomic<uint32_t> created{0}, slow{0};
+    created += n;
+    if (ms > 8.0) {
+        const uint32_t k = ++slow;
+        if (k <= 20 || (k & (k - 1)) == 0)
+            RN_INFO("Vulkan: vkCreateGraphicsPipelines(%u) took %.1f ms (%u slow of %u pipelines so far)", n, ms, k,
+                    created.load());
+    }
+    if (r == VK_SUCCESS)
+        CheckpointPipelines(infos, n, out);
+    return r;
+}
+
+// UE4's Oculus renderer gives its render passes a fragment density map attachment (Quest foveation) even on
+// devices without VK_EXT_fragment_density_map. Without the extension the FDM layout and create info are invalid:
+// the attachment becomes an ordinary unused one.
+
+VkImageLayout WithoutFdm(VkImageLayout l) {
+    return l == VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : l;
+}
+
+VkResult VKAPI_CALL H_vkCreateRenderPass(VkDevice device, const VkRenderPassCreateInfo* ci,
+                                         const VkAllocationCallbacks*, VkRenderPass* out) {
+    auto create = Fn<PFN_vkCreateRenderPass>("vkCreateRenderPass");
+    if (g_fdm_enabled)
+        return create(device, ci, nullptr, out);
+    VkRenderPassCreateInfo c = *ci;
+    std::vector<VkAttachmentDescription> att(ci->pAttachments, ci->pAttachments + ci->attachmentCount);
+    for (auto& a : att) {
+        a.initialLayout = WithoutFdm(a.initialLayout);
+        a.finalLayout = WithoutFdm(a.finalLayout);
+    }
+    c.pAttachments = att.data();
+    ChainSplice splice;
+    splice.Remove(&c, {VK_STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_CREATE_INFO_EXT});
+    return create(device, &c, nullptr, out);
+}
+
+VkResult RenderPass2WithoutFdm(const char* name, VkDevice device, const VkRenderPassCreateInfo2* ci,
+                               VkRenderPass* out) {
+    auto create = Fn<PFN_vkCreateRenderPass2>(name);
+    if (g_fdm_enabled)
+        return create(device, ci, nullptr, out);
+    VkRenderPassCreateInfo2 c = *ci;
+    std::vector<VkAttachmentDescription2> att(ci->pAttachments, ci->pAttachments + ci->attachmentCount);
+    for (auto& a : att) {
+        a.initialLayout = WithoutFdm(a.initialLayout);
+        a.finalLayout = WithoutFdm(a.finalLayout);
+    }
+    c.pAttachments = att.data();
+    ChainSplice splice;
+    splice.Remove(&c, {VK_STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_CREATE_INFO_EXT});
+    return create(device, &c, nullptr, out);
+}
+VkResult VKAPI_CALL H_vkCreateRenderPass2(VkDevice device, const VkRenderPassCreateInfo2* ci,
+                                          const VkAllocationCallbacks*, VkRenderPass* out) {
+    return RenderPass2WithoutFdm("vkCreateRenderPass2", device, ci, out);
+}
+VkResult VKAPI_CALL H_vkCreateRenderPass2KHR(VkDevice device, const VkRenderPassCreateInfo2* ci,
+                                             const VkAllocationCallbacks*, VkRenderPass* out) {
+    return RenderPass2WithoutFdm("vkCreateRenderPass2KHR", device, ci, out);
 }
 
 // Debug messengers would call guest code from driver threads; accept and ignore.
@@ -358,6 +560,13 @@ const std::map<std::string, ThunkFn>& SpecialThunks() {
         {"vkEnumerateDeviceLayerProperties", &Wrap<&H_vkEnumerateDeviceLayerProperties>},
         {"vkCreateDevice", &Wrap<&H_vkCreateDevice>},
         {"vkCreateAndroidSurfaceKHR", &Wrap<&H_vkCreateAndroidSurfaceKHR>},
+        {"vkCreateRenderPass", &Wrap<&H_vkCreateRenderPass>},
+        {"vkCreateShaderModule", &Wrap<&H_vkCreateShaderModule>},
+        {"vkCreateGraphicsPipelines", &Wrap<&H_vkCreateGraphicsPipelines>},
+        {"vkQueueSubmit", &Wrap<&H_vkQueueSubmit>},
+        {"vkQueueSubmit2", &Wrap<&H_vkQueueSubmit2>},
+        {"vkCreateRenderPass2", &Wrap<&H_vkCreateRenderPass2>},
+        {"vkCreateRenderPass2KHR", &Wrap<&H_vkCreateRenderPass2KHR>},
         {"vkCreateDebugUtilsMessengerEXT", &Wrap<&H_vkCreateDebugUtilsMessengerEXT>},
         {"vkDestroyDebugUtilsMessengerEXT", &Wrap<&H_vkDestroyDebugUtilsMessengerEXT>},
         {"vkCreateDebugReportCallbackEXT", &Wrap<&H_vkCreateDebugReportCallbackEXT>},
@@ -401,6 +610,7 @@ void RegisterVulkanHle() {
     std::map<std::string, ThunkFn> m;
     AddGeneratedVulkanThunks(m);
     AddTextureEmulationThunks(m);
+    AddCheckpointThunks(m);
     for (const auto& [k, v] : SpecialThunks())
         m[k] = v;
     RegisterHostLibrary(kLibVulkan, "libvulkan.so", std::move(m));

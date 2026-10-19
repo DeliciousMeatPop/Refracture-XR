@@ -70,6 +70,10 @@ add_executable(refract_native
   src/cpu_dynarmic.cpp
   src/vulkan_hle.cpp
   src/vk_texcomp.cpp
+  src/etc2_decode.cpp
+  src/bc_encode.cpp
+  src/vk_checkpoints.cpp
+  src/spirv_patch.cpp
   src/properties.cpp
   src/inet.cpp
   src/trace.cpp
