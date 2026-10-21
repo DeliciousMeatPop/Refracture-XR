@@ -107,7 +107,7 @@ export class WaydroidRuntime extends Runtime {
       const remote = installed && (await this.adb(['shell', 'sha256sum', installed]).catch(() => '')).split(/\s/)[0];
       if (remote === local) continue;
       update(`Installing ${item.label}`);
-      await this.adb(['install', '--no-incremental', '--force-queryable', '-r', apk], { timeout: 240000 });
+      await this.installGuestPackage(item.package, apk);
     }
   }
   // scripts/waydroid.sh play: runs the session until the window closes. Its output is the log shown on failure.
@@ -131,6 +131,8 @@ export class WaydroidRuntime extends Runtime {
       if (this.stopping) { this.stopping = false; code = 0; error = ''; }
       // The script's last "waydroid.sh: ..." line says why it stopped.
       const reason = tail.trim().split(/\r?\n/).filter(l => /^(waydroid\.sh|error)/i.test(l)).pop()?.replace(/^[^:]*:\s*/, '');
+      // The whole output goes to launcher-backend.log (stderr), which diagnostics exports include.
+      if (code) console.warn(`scripts/waydroid.sh play ${game.package} exited with code ${code}${error ? `: ${error}` : ''}\n${tail.trim()}`);
       onExit(code, error || (code ? reason || readableError(tail) || 'The game session stopped unexpectedly.' : tail));
     };
     child.on('error', e => end(1, e.message)); child.on('exit', code => end(code));
@@ -194,6 +196,7 @@ export class WaydroidEmulator extends Emulator {
       { label: 'Host bridge', file: 'build-linux/host-bridge/refract-host-bridge' },
       { label: 'PC viewer', file: 'build-linux/refract-viewer' },
       { label: 'GPU sharing layer', file: 'build-linux/gpu-layer/librefract_gpu_layer.so' },
+      { label: 'Runtime Vulkan layer', file: 'build-vulkan-compat/libVkLayer_REFRACT_runtime.so' },
       ...waydroidPackages.map(p => ({ label: p.label, file: p.apk, package: p.package })),
     ];
     return Promise.all(files.map(async item => {

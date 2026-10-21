@@ -50,6 +50,8 @@ export function linuxComponents(root) {
     { label: 'Host bridge', file: 'build-linux/host-bridge/refract-host-bridge', host: true },
     { label: 'PC viewer', file: 'build-linux/refract-viewer', host: true },
     { label: 'GPU sharing layer', file: 'build-linux/gpu-layer/librefract_gpu_layer.so', host: true },
+    // tools/android_runtime_policy.py puts it on Android before each game; a source checkout builds it with the NDK.
+    { label: 'Runtime Vulkan layer', file: 'build-vulkan-compat/libVkLayer_REFRACT_runtime.so', layer: true },
     ...waydroidPackages.map(p => ({ label: p.label, file: p.apk, package: p.package })),
     { label: 'ARM translator (Digitalis)', file: 'prebuilts/digitalis-qpr2/system' },
   ];
@@ -58,9 +60,12 @@ async function built(root) {
   const check = { id: 'components', title: 'Refract components' };
   const missing = [];
   for (const item of linuxComponents(root)) if (!await exists(path.join(root, item.file))) missing.push(item);
-  if (!missing.length) return { ...check, ok: true, detail: 'Host bridge, PC viewer, GPU sharing layer, Android runtime and platform stand-in are built.' };
-  const buildable = missing.every(m => m.host || m.package);
-  return { ...check, ok: false, detail: `Not built yet: ${missing.map(m => m.label).join(', ')}.`,
+  if (!missing.length) return { ...check, ok: true, detail: 'Host bridge, PC viewer, GPU sharing layer, runtime Vulkan layer, Android runtime and platform stand-in are built.' };
+  // A packaged Refract has no layer source to build from.
+  const layerSource = await exists(path.join(root, 'tools/android_vulkan_layer.cpp'));
+  const buildable = missing.every(m => m.host || m.package || (m.layer && layerSource));
+  const unpackaged = !layerSource && missing.some(m => m.layer) ? ' This Refract package lacks it: install the latest release.' : '';
+  return { ...check, ok: false, detail: `Not built yet: ${missing.map(m => m.label).join(', ')}.${unpackaged}`,
     ...(buildable ? { fix: { action: 'build', label: 'Build missing parts', note: 'Needs CMake, Ninja, a C++ compiler, and for Android the SDK, NDK 27 and a JDK. Takes a few minutes.' } } : {}) };
 }
 
@@ -89,6 +94,9 @@ export async function fixSetupLinux(root, settings, action, progress = () => {})
       const items = linuxComponents(root);
       if (await Promise.all(items.filter(i => i.host).map(missing)).then(m => m.some(Boolean))) { progress('Building the host programs'); await run(path.join(root, 'build_host.sh'), [], long); }
       const env = { JAVA_HOME: jdk(), ...(process.env.ANDROID_HOME ? {} : { ANDROID_HOME: settings.sdk }) };
+      if (await missing(items.find(i => i.layer))) {
+        progress('Building the runtime Vulkan layer'); await run('python3', [path.join(root, 'tools/android_runtime_policy.py'), '--build-layer'], { ...long, env });
+      }
       if (await missing(items.find(i => i.package === 'com.refract.openxrruntime')) || await missing(items.find(i => i.package === 'com.oculus.systemdriver'))) {
         progress('Building the Android runtime'); await run(path.join(root, 'android-runtime-apk/build_apk.sh'), [], { ...long, env: { ...env, ANDROID_ABI: 'arm64-v8a' } });
       }

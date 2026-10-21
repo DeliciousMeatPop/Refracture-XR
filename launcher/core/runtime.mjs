@@ -237,7 +237,19 @@ export class Runtime {
       const remote = installed && (await this.adb(['shell', 'sha256sum', installed]).catch(() => '')).split(/\s/)[0];
       if (remote === local) continue;
       update(`Installing ${item.label}`);
-      await this.adb(['install', '--no-incremental', '--force-queryable', '-r', apk], { timeout: 240000 });
+      await this.installGuestPackage(item.package, apk);
+    }
+  }
+  // Debug builds are signed with a key made on the PC that built them, so a release's packages cannot update ones a
+  // source checkout or another release installed (INSTALL_FAILED_UPDATE_INCOMPATIBLE). Refract's packages keep no
+  // data (the player's id is a property), so those are replaced.
+  async installGuestPackage(pkg, apk) {
+    const install = () => this.adb(['install', '--no-incremental', '--force-queryable', '-r', apk], { timeout: 240000 });
+    try { await install(); }
+    catch (error) {
+      if (!/INSTALL_FAILED_UPDATE_INCOMPATIBLE/.test(error.message)) throw error;
+      await this.adb(['uninstall', validPackage(pkg)]);
+      await install();
     }
   }
   async inspect(apk) {

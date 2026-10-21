@@ -778,9 +778,20 @@ cmd_install() {
     for apk in "${RUNTIME_APKS[@]}"; do
         [[ -f "$apk" ]] || die "$apk is missing: build it with ANDROID_ABI=arm64-v8a android-runtime-apk/build_apk.sh and platform-sdk/build_apk.sh"
     done
+    local output package
     for apk in "${RUNTIME_APKS[@]}" "$@"; do
         say "Installing $(basename "$apk")"
-        adb_s install --no-incremental --force-queryable -r "$apk" | tail -n1
+        output="$(adb_s install --no-incremental --force-queryable -r "$apk" 2>&1)" || true
+        # Debug builds are signed with a key made on the PC that built them, so another build's Refract package (they
+        # keep no data) is replaced. A game installed with another key is left for the player to uninstall.
+        package="$(sed -n 's/.*INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package \([A-Za-z0-9_.]*\) .*/\1/p' <<<"$output")"
+        if [[ -n "$package" && " ${RUNTIME_APKS[*]} " == *" $apk "* ]]; then
+            say "Replacing $package, which another build of Refract signed"
+            adb_s uninstall "$package" >/dev/null
+            output="$(adb_s install --no-incremental --force-queryable -r "$apk" 2>&1)" || true
+        fi
+        printf '%s\n' "$output" | tail -n1
+        [[ "$output" == *Success* ]] || die "could not install $(basename "$apk")"
     done
 }
 
@@ -859,6 +870,14 @@ start_logged() {  # log-name command...
     SESSION_PID=$!
 }
 last_error() { grep -v '^[[:space:]]*$' "$SESSION_LOGS/$1.err" 2>/dev/null | tail -n1 || true; }
+# A Python step (tools/*_policy.py) failed: its traceback goes to the output and its exception's message into the
+# error line the launcher shows.
+policy_failed() {  # log-name, what failed
+    cat "$SESSION_LOGS/$1.err" >&2
+    local reason
+    reason="$(last_error "$1" | sed -E 's/^[A-Za-z_.]*(Error|Exception): //')"
+    die "the $2 failed, so the game was not started${reason:+: $reason}"
+}
 
 cmd_play() {
     local package="$DEFAULT_PACKAGE"
@@ -970,12 +989,12 @@ cmd_play() {
     local -a memory_args=(--adb "$ADB" --serial "$SERIAL" --package "$package" --state-dir "$ROOT/build-waydroid-game/memory-policy")
     [[ $unreal_policy == 1 ]] || memory_args+=(--restore)
     local memory
-    memory="$(python3 "$ROOT/tools/unreal_memory_policy.py" "${memory_args[@]}")" ||
-        die "the Unreal memory policy failed; the game was not started"
+    memory="$(python3 "$ROOT/tools/unreal_memory_policy.py" "${memory_args[@]}" 2>"$SESSION_LOGS/memory-policy.err")" ||
+        policy_failed memory-policy "Unreal memory policy"
     say "Unreal memory policy: $memory"
     local policy
-    policy="$(python3 "$ROOT/tools/android_runtime_policy.py" --adb "$ADB" --serial "$SERIAL" --package "$package")" ||
-        die "the Android runtime policy failed; the game was not started"
+    policy="$(python3 "$ROOT/tools/android_runtime_policy.py" --adb "$ADB" --serial "$SERIAL" --package "$package" 2>"$SESSION_LOGS/runtime-policy.err")" ||
+        policy_failed runtime-policy "Android runtime policy"
     say "Android runtime policy: $policy"
 
     # A leftover pose server, viewer or bridge holds the pose and image ports and would take the game's connection.

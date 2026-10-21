@@ -7,18 +7,44 @@ from pathlib import Path
 import subprocess
 
 
+def build_vulkan_layer(sdk):
+    """build-vulkan-compat/libVkLayer_REFRACT_runtime.so, built with the SDK's NDK when missing or older than its source."""
+    root = Path(__file__).resolve().parents[1]
+    source = root / 'tools/android_vulkan_layer.cpp'
+    headers = [root / 'tools' / name for name in ('vulkan_descriptor_template.h', 'vulkan_fence_tracker.h',
+                                                  'vulkan_texture_transcoder.h', 'texture_transcode.h', 'astc_decode.h', 'astc_bc3_spirv.h')]
+    output = root / 'build-vulkan-compat/libVkLayer_REFRACT_runtime.so'
+    output.parent.mkdir(exist_ok=True)
+    # A packaged Refract ships only the built layer; a source checkout rebuilds it when the source changes.
+    if not output.exists() or (source.exists() and output.stat().st_mtime < max(p.stat().st_mtime for p in [source, *headers] if p.exists())):
+        if not source.exists():
+            raise RuntimeError(f'{output} is missing and this Refract has no source to build it from; reinstall Refract')
+        host, wrapper = ('windows-x86_64', '.cmd') if os.name == 'nt' else ('linux-x86_64', '')
+        compilers = sorted((sdk / 'ndk').glob(f'*/toolchains/llvm/prebuilt/{host}/bin/x86_64-linux-android29-clang++{wrapper}'),
+                           key=lambda p: tuple(int(n) for n in p.parents[5].name.split('.')))
+        if not compilers: raise RuntimeError(f'Android NDK required for the runtime Vulkan layer (none in {sdk / "ndk"})')
+        subprocess.run([str(compilers[-1]), '-std=c++17', '-shared', '-fPIC', '-O2', '-static-libstdc++',
+                        '-Wl,-Bsymbolic', str(source), '-llog', '-o', str(output)], check=True, timeout=120)
+    return output
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk', type=Path, help='Android SDK (its platform-tools/adb)')
     parser.add_argument('--adb', type=Path, help='adb itself, instead of --sdk')
-    parser.add_argument('--serial', required=True)
-    parser.add_argument('--package', required=True)
+    parser.add_argument('--serial')
+    parser.add_argument('--package')
+    parser.add_argument('--build-layer', action='store_true', help='only build the runtime Vulkan layer (release builds, Setup)')
     args = parser.parse_args()
+    sdk = args.sdk or Path(os.environ.get('ANDROID_HOME', Path.home() / 'Android/Sdk'))
+    if args.build_layer:
+        print(build_vulkan_layer(sdk)); return
+    if not args.serial or not args.package:
+        parser.error('--serial and --package are required')
     import re
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+', args.package):
         parser.error('Invalid Android package')
     exe = '.exe' if os.name == 'nt' else ''
-    sdk = args.sdk or Path(os.environ.get('ANDROID_HOME', Path.home() / 'Android/Sdk'))
     adb_path = args.adb or sdk / f'platform-tools/adb{exe}'
     adb = [str(adb_path), '-s', args.serial]
     def run(*parts):
@@ -62,20 +88,7 @@ def main():
         features = run('shell', 'mount | grep -q " /sys/kernel/debug " || mount -t debugfs debugfs /sys/kernel/debug; '
                        'echo NO_TTWU_QUEUE > /sys/kernel/debug/sched/features; cat /sys/kernel/debug/sched/features; true')
         scheduler = 'NO_TTWU_QUEUE' if 'NO_TTWU_QUEUE' in features.split() else 'unchanged'
-    root = Path(__file__).resolve().parents[1]
-    source = root / 'tools/android_vulkan_layer.cpp'
-    headers = [root / 'tools' / name for name in ('vulkan_descriptor_template.h', 'vulkan_fence_tracker.h',
-                                                  'vulkan_texture_transcoder.h', 'texture_transcode.h', 'astc_decode.h', 'astc_bc3_spirv.h')]
-    output = root / 'build-vulkan-compat/libVkLayer_REFRACT_runtime.so'
-    output.parent.mkdir(exist_ok=True)
-    # A packaged Refract ships only the built layer; a source checkout rebuilds it when the source changes.
-    if not output.exists() or (source.exists() and output.stat().st_mtime < max(p.stat().st_mtime for p in [source, *headers] if p.exists())):
-        host, wrapper = ('windows-x86_64', '.cmd') if os.name == 'nt' else ('linux-x86_64', '')
-        compilers = sorted((sdk / 'ndk').glob(f'*/toolchains/llvm/prebuilt/{host}/bin/x86_64-linux-android29-clang++{wrapper}'),
-                           key=lambda p: tuple(int(n) for n in p.parents[5].name.split('.')))
-        if not compilers: raise RuntimeError('Android NDK required for the runtime Vulkan layer')
-        subprocess.run([str(compilers[-1]), '-std=c++17', '-shared', '-fPIC', '-O2', '-static-libstdc++',
-                        '-Wl,-Bsymbolic', str(source), '-llog', '-o', str(output)], check=True, timeout=120)
+    output = build_vulkan_layer(sdk)
     directory = '/data/local/debug/vulkan'
     remote = directory + '/libVkLayer_REFRACT_runtime.so'
     expected = hashlib.sha256(output.read_bytes()).hexdigest()
