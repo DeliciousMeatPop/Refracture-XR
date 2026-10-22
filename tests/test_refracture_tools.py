@@ -39,6 +39,24 @@ class Brand(unittest.TestCase):
         self.assertEqual(brand.apply(work), [])
         self.assertEqual(first, {p: p.read_bytes() for p in (work / 'launcher').rglob('*') if p.is_file()})
 
+    def test_the_version_is_stamped_on_the_copy_only(self):
+        work = self.copy()
+        before = (ROOT / 'launcher/package.json').read_text(encoding='utf-8')
+        self.assertEqual(brand.apply(work, version='0.0.1'), [])
+        for relative in brand.VERSION_FILES:
+            self.assertEqual(json.loads((work / relative).read_text(encoding='utf-8'))['version'], '0.0.1')
+        # Only the version line changed, and the repository's own files keep Refract's.
+        self.assertEqual((work / 'launcher/package.json').read_text(encoding='utf-8').replace('0.0.1', '@'), before.replace(json.loads(before)['version'], '@'))
+        self.assertEqual((ROOT / 'launcher/package.json').read_text(encoding='utf-8'), before)
+        self.assertEqual(brand.apply(work, version='0.0.2'), [])  # Stamping again replaces it.
+        self.assertEqual(json.loads((work / 'launcher/package.json').read_text(encoding='utf-8'))['version'], '0.0.2')
+
+    def test_a_version_that_is_not_three_numbers_is_refused(self):
+        work = self.copy()
+        for bad in ('1.0', 'v1.0.0', '1.0.0-beta', ''):
+            self.assertEqual(len(brand.apply(work, version=bad)), 1, bad)
+        self.assertNotIn('Refracture XR', (work / 'launcher/src/components/chrome.jsx').read_text(encoding='utf-8'))
+
     def test_a_line_refract_changed_is_reported_not_skipped(self):
         work = self.copy()
         chrome = work / 'launcher/src/components/chrome.jsx'
@@ -107,6 +125,7 @@ class Package(unittest.TestCase):
     def test_windows_package(self):
         self.check('win64', 'Refract.exe')
 
+    @unittest.skipIf(sys.platform == 'win32', 'file modes are a Unix thing; the Linux package is built on Linux')
     def test_linux_package_keeps_the_launcher_executable(self):
         self.check('linux-x86_64', 'Refract')
         result = next((self.work / 'out').glob('*.tar.gz'))
@@ -136,6 +155,16 @@ class Package(unittest.TestCase):
         finally:
             sys.argv = old
         self.assertTrue(any((self.work / 'out').glob('Refracture-XR-*-win64.zip')))
+
+    def test_a_newer_refract_than_the_merged_one_is_warned_about(self):
+        import contextlib, io
+        upstream = refract_release(self.work, 'win64')  # Refract 1.0.3
+        for merged, warns in (('1.0.3', False), ('1.0.2', True), (None, False)):
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                package.build('win64', upstream, self.binary, self.work / 'out', merged=merged)
+            self.assertEqual('::warning::' in err.getvalue(), warns, merged)
+            if warns: self.assertIn('1.0.3', err.getvalue()); self.assertIn('1.0.2', err.getvalue())
 
     def test_a_package_that_does_not_match_its_checksum_is_refused(self):
         upstream = refract_release(self.work, 'win64')

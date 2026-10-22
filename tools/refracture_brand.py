@@ -6,11 +6,12 @@ branding. The release build (.github/workflows/release.yml) runs this on its thr
 
     python tools/refracture_brand.py            # brand this checkout in place (use a copy, or `git checkout .` to undo)
     python tools/refracture_brand.py --check    # change nothing; fail if Refract's files no longer match what is replaced
+    python tools/refracture_brand.py --version 0.0.1   # also give the launcher Refracture XR's own version
 
 Every replacement must find its text. When Refract changes one of these lines, the check fails and names the spot,
 rather than a release going out half branded; update REPLACEMENTS below. Running it twice is harmless.
 """
-import argparse, base64, shutil, sys
+import argparse, base64, re, shutil, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -61,9 +62,14 @@ export function LogoMark({{ className, title }}) {{
 '''
 
 
-def apply(root, check=False):
+VERSION_FILES = ('launcher/package.json', 'launcher/src-tauri/tauri.conf.json')
+
+
+def apply(root, check=False, version=None):
     """Returns the problems found (empty when everything applied or would apply)."""
     problems, writes = [], {}
+    if version is not None and not re.fullmatch(r'\d+\.\d+\.\d+', version):
+        return [f'version {version!r}: use three numbers like 0.0.1']
     def text(relative):
         if relative not in writes:
             path = root / relative
@@ -82,6 +88,13 @@ def apply(root, check=False):
             problems.append(f'{relative}: {old!r} appears more than once')
         else:
             writes[relative] = current.replace(old, new)
+    # Refracture XR's own version (the updater compares it with this repository's releases), not Refract's.
+    for relative in VERSION_FILES if version is not None else ():
+        current = text(relative)
+        if current is None: continue
+        stamped, found = re.subn(r'^(\s*"version"\s*:\s*")[^"]*(")', rf'\g<1>{version}\g<2>', current, count=1, flags=re.M)
+        if not found: problems.append(f'{relative}: no "version" to set')
+        else: writes[relative] = stamped
     css = text('launcher/src/styles.css')
     if css is not None and CSS_MARK not in css:
         writes['launcher/src/styles.css'] = css.rstrip('\n') + '\n' + CSS
@@ -100,8 +113,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--root', default=str(ROOT), help='the checkout to brand (default: this one)')
     parser.add_argument('--check', action='store_true', help='change nothing, only report what no longer matches')
+    parser.add_argument('--version', help="Refracture XR's own version, three numbers (default: leave Refract's)")
     args = parser.parse_args()
-    problems = apply(Path(args.root), args.check)
+    problems = apply(Path(args.root), args.check, args.version)
     for problem in problems:
         print(f'error: {problem}', file=sys.stderr)
     if problems:
