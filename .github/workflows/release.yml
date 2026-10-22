@@ -5,12 +5,10 @@ name: Release
 # throwaway checkout that tools/refracture_brand.py has given Refracture XR's name and R mark, so the committed files stay
 # Refract's and merges stay clean. The release is created as a draft; publish it once the packages have been tried.
 #
-# Start it by pushing a tag (v1.0.4: must equal the version in launcher/package.json and launcher/src-tauri/tauri.conf.json),
-# or by hand from the Actions tab.
+# Runs only when started by hand from the Actions tab. Pick a tag (v1.0.4) as the ref to have the version checked against it
+# (it must equal launcher/package.json and launcher/src-tauri/tauri.conf.json); from a branch, the draft is named after package.json.
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       upstream_tag:

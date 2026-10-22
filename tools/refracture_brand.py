@@ -29,7 +29,7 @@ REPLACEMENTS = [
     ('launcher/index.html', '<title>Refract</title>', f'<title>{NAME}</title>'),
     ('launcher/src-tauri/tauri.conf.json', '"title": "Refract",', f'"title": "{NAME}",'),
     # A packaged build looks for updates in Refracture XR's releases, not Refract's (whose packages have no Unknown sources).
-    ('launcher/core/update.mjs', "const REPOSITORY = 'MIXIDtheSilly/Refract';", "const REPOSITORY = 'DeliciousMeatPop/Refract';"),
+    ('launcher/core/update.mjs', "const REPOSITORY = 'MIXIDtheSilly/Refract';", "const REPOSITORY = 'DeliciousMeatPop/Refracture-XR';"),
     ('launcher/core/update.mjs', 'const assetName = /^Refract-(', 'const assetName = /^Refracture-XR-('),
     # The licence asks for a visible credit wherever the app shows legal notices; Settings is where this one goes.
     ('launcher/src/pages/settings.jsx', '      {saveBar}\n    </form>',

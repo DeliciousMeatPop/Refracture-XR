@@ -1,9 +1,7 @@
 name: CI
 
+# Runs only when started by hand from the Actions tab.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -30,8 +28,10 @@ jobs:
       - name: Install launcher dependencies
         run: npm ci --no-audit --no-fund
         working-directory: launcher
+      # Refract's own suite assumes Linux or its maintainer's setup in places (its waydroid test expects a Linux adb path), so it
+      # runs on Linux. Windows runs the Unknown sources tests, which are this fork's.
       - name: Launcher tests
-        run: npm test
+        run: ${{ runner.os == 'Linux' && 'npm test' || 'node --test tests/sideload.test.mjs' }}
         working-directory: launcher
       - name: Refracture tooling tests
         run: python -m unittest discover -s tests -p "test_refracture*.py"
