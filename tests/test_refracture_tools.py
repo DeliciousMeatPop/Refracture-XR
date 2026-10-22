@@ -107,6 +107,7 @@ class Package(unittest.TestCase):
     def test_windows_package(self):
         self.check('win64', 'Refract.exe')
 
+    @unittest.skipIf(sys.platform == 'win32', 'file modes are a Unix thing; the Linux package is built on Linux')
     def test_linux_package_keeps_the_launcher_executable(self):
         self.check('linux-x86_64', 'Refract')
         result = next((self.work / 'out').glob('*.tar.gz'))

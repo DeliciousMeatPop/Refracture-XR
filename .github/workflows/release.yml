@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       upstream_tag:
-        description: "Refract release to build on, e.g. v1.0.3 (empty: its latest release). Use the one this checkout was merged up to."
+        description: "Refract release tag to build on, exactly as on Refract's Releases page (e.g. v1.0.3). Leave empty for its latest release."
         required: false
         default: ''
 
@@ -62,10 +62,21 @@ jobs:
       - name: Refract's release package
         shell: bash
         run: |
-          tag="$UPSTREAM_TAG"
+          tag="${UPSTREAM_TAG// /}"
           if [ -z "$tag" ]; then tag="$(gh release view -R "$UPSTREAM" --json tagName -q .tagName)"; fi
           [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Not a release tag: $tag" >&2; exit 1; }
-          gh api "repos/$UPSTREAM/releases/tags/$tag" > release.json
+          # The tag as typed, then with and without a leading v.
+          found=""
+          for candidate in "$tag" "v${tag#v}" "${tag#v}"; do
+            if gh api "repos/$UPSTREAM/releases/tags/$candidate" > release.json 2>/dev/null; then found="$candidate"; break; fi
+          done
+          if [ -z "$found" ]; then
+            echo "Refract has no release tagged '$tag'. Its releases:" >&2
+            gh release list -R "$UPSTREAM" --limit 20 >&2 || true
+            echo "Leave upstream_tag empty to use the latest release, or give one of the tags above exactly as listed." >&2
+            exit 1
+          fi
+          tag="$found"
           asset="$(node -e "const r = require('./release.json'); const m = r.assets.map(a => a.name).filter(n => /^Refract-[0-9.]+-${{ matrix.platform }}\.(zip|tar\.gz)\$/.test(n)); if (m.length !== 1) { console.error('Expected one ${{ matrix.platform }} package in release $tag, found: ' + m.join(', ')); process.exit(1); } console.log(m[0]);")"
           mkdir upstream
           gh release download "$tag" -R "$UPSTREAM" -p "$asset" -D upstream
