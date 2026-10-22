@@ -1,26 +1,25 @@
 name: Release
 
-# Refracture XR's packages are Refract's own release with this fork's launcher laid over it (tools/refracture_package.py):
+# Refracture XR's packages are Refract's newest release with this fork's launcher laid over it (tools/refracture_package.py):
 # Refract's runtimes need its maintainer's build machine, so they are not rebuilt here. The launcher is built on a
-# throwaway checkout that tools/refracture_brand.py has given Refracture XR's name and R mark, so the committed files stay
-# Refract's and merges stay clean. The release is created as a draft; publish it once the packages have been tried.
+# throwaway checkout that tools/refracture_brand.py has given Refracture XR's name, R mark and version, so the committed
+# files stay Refract's and merges stay clean. The release is created as a draft; publish it once the packages have been tried.
 #
-# Runs only when started by hand from the Actions tab. Pick a tag (v1.0.4) as the ref to have the version checked against it
-# (it must equal launcher/package.json and launcher/src-tauri/tauri.conf.json); from a branch, the draft is named after package.json.
+# Runs only when started by hand from the Actions tab. The version is Refracture XR's own and has nothing to do with Refract's.
 
 on:
   workflow_dispatch:
     inputs:
-      upstream_tag:
-        description: "Refract release tag to build on, exactly as on Refract's Releases page (e.g. v1.0.3). Leave empty for its latest release."
-        required: false
-        default: ''
+      version:
+        description: "Refracture XR's own version: three numbers, e.g. 0.0.1 (not Refract's version; the newest Refract release is always used)"
+        required: true
 
 permissions:
   contents: read
 
 env:
   UPSTREAM: MIXIDtheSilly/Refract
+  VERSION: ${{ inputs.version }}
 
 jobs:
   package:
@@ -38,8 +37,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       GH_TOKEN: ${{ github.token }}
-      UPSTREAM_TAG: ${{ inputs.upstream_tag }}
     steps:
+      - name: The version is three numbers
+        shell: bash
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must be three numbers like 0.0.1, not '$VERSION'" >&2; exit 1; }
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -50,41 +53,27 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: The tag matches the launcher's version
-        if: github.ref_type == 'tag'
+      # The launcher's version in the repository is the Refract release its code was merged up to (it is replaced, in the
+      # throwaway copy, by this release's version below). Kept to compare with the newest Refract release.
+      - name: Which Refract release is merged here
         shell: bash
-        run: |
-          for file in launcher/package.json launcher/src-tauri/tauri.conf.json; do
-            version="$(node -p "require('./$file').version")"
-            [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "$file says $version but the tag is $GITHUB_REF_NAME" >&2; exit 1; }
-          done
+        run: echo "MERGED_UPSTREAM=$(node -p "require('./launcher/package.json').version")" >> "$GITHUB_ENV"
 
-      - name: Refract's release package
+      - name: Refract's newest release package
         shell: bash
         run: |
-          tag="${UPSTREAM_TAG// /}"
-          if [ -z "$tag" ]; then tag="$(gh release view -R "$UPSTREAM" --json tagName -q .tagName)"; fi
-          [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Not a release tag: $tag" >&2; exit 1; }
-          # The tag as typed, then with and without a leading v.
-          found=""
-          for candidate in "$tag" "v${tag#v}" "${tag#v}"; do
-            if gh api "repos/$UPSTREAM/releases/tags/$candidate" > release.json 2>/dev/null; then found="$candidate"; break; fi
-          done
-          if [ -z "$found" ]; then
-            echo "Refract has no release tagged '$tag'. Its releases:" >&2
-            gh release list -R "$UPSTREAM" --limit 20 >&2 || true
-            echo "Leave upstream_tag empty to use the latest release, or give one of the tags above exactly as listed." >&2
-            exit 1
-          fi
-          tag="$found"
-          asset="$(node -e "const r = require('./release.json'); const m = r.assets.map(a => a.name).filter(n => /^Refract-[0-9.]+-${{ matrix.platform }}\.(zip|tar\.gz)\$/.test(n)); if (m.length !== 1) { console.error('Expected one ${{ matrix.platform }} package in release $tag, found: ' + m.join(', ')); process.exit(1); } console.log(m[0]);")"
+          gh api "repos/$UPSTREAM/releases/latest" > release.json || { echo "Refract has no published release (a pre-release does not count)." >&2; exit 1; }
+          tag="$(node -p "require('./release.json').tag_name")"
+          [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Unexpected release tag: $tag" >&2; exit 1; }
+          asset="$(node -e "const r = require('./release.json'); const m = r.assets.map(a => a.name).filter(n => /^Refract-[0-9.]+-${{ matrix.platform }}\.(zip|tar\.gz)\$/.test(n)); if (m.length !== 1) { console.error('Expected one ${{ matrix.platform }} package in Refract release ' + r.tag_name + ', found: ' + m.join(', ')); process.exit(1); } console.log(m[0]);")"
           mkdir upstream
           gh release download "$tag" -R "$UPSTREAM" -p "$asset" -D upstream
           echo "ASSET=$asset" >> "$GITHUB_ENV"
           echo "Using Refract $tag: $asset"
 
       - name: Brand the launcher as Refracture XR
-        run: python tools/refracture_brand.py
+        run: python tools/refracture_brand.py --version "$VERSION"
+        shell: bash
 
       - name: System libraries for Tauri
         if: runner.os == 'Linux'
@@ -108,6 +97,7 @@ jobs:
           --platform ${{ matrix.platform }}
           --upstream "upstream/$ASSET"
           --release-json release.json
+          --merged-version "$MERGED_UPSTREAM"
           --binary "launcher/src-tauri/target/release/${{ matrix.program }}"
           --out dist
 
@@ -134,14 +124,12 @@ jobs:
           merge-multiple: true
       - name: Create the draft release
         run: |
-          version="$(node -p "require('./launcher/package.json').version")"
-          tag="${GITHUB_REF_NAME}"
-          [ "$GITHUB_REF_TYPE" = tag ] || tag="v$version"
+          tag="v$VERSION"
           (cd dist && cat *.sha256 > SHA256SUMS && rm -- *.sha256)
           printf '%s\n' \
-            "Refracture XR $version: an independent fork of Refract. Based on Refract: https://github.com/$UPSTREAM" \
+            "Refracture XR $VERSION: an independent fork of Refract. Based on Refract: https://github.com/$UPSTREAM" \
             "" \
-            "Each package is Refract's own release (see UPSTREAM.txt inside it for which one, with its SHA-256) with Refracture XR's launcher on top. It adds the Unknown sources page (docs/unknown_sources.md). Unzip or unpack it and start Refract.exe or ./Refract, as for Refract." \
+            "Each package is Refract's newest release when it was built (UPSTREAM.txt inside names it, with its SHA-256) with Refracture XR's launcher on top. It adds the Unknown sources page (docs/unknown_sources.md). Unzip or unpack it and start Refract.exe or ./Refract, as for Refract." \
             "" \
             "Source: https://github.com/${GITHUB_REPOSITORY}" \
             "" \
@@ -149,5 +137,5 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" dist/* --clobber
           else
-            gh release create "$tag" dist/* --draft --target "$GITHUB_SHA" --title "Refracture XR $version" --notes-file notes.md
+            gh release create "$tag" dist/* --draft --target "$GITHUB_SHA" --title "Refracture XR $VERSION" --notes-file notes.md
           fi

@@ -143,9 +143,9 @@ Neither runs by itself: start them from the repository's **Actions** tab (**Run 
 
 - **CI** runs the launcher's tests, builds the interface and compiles the Tauri shell, and fails if a merge from
   Refract changed a line the branding replaces.
-- **Release** builds the launcher, gives it Refracture XR's name, R mark and icons on a throwaway copy, and lays it
-  over Refract's official release package for Windows and Linux. It creates a **draft** release for you to check
-  and publish.
+- **Release** asks for Refracture XR's own version (`0.0.1`; nothing to do with Refract's), builds the launcher
+  with Refracture XR's name, R mark, icons and that version on a throwaway copy, and lays it over Refract's newest
+  release package for Windows and Linux. It creates a **draft** release for you to check and publish.
 
 Because the branding is applied at build time, the files in this repository stay Refract's own and merging
 Refract's changes stays easy. Details, and what to do when a merge breaks the branding, are in

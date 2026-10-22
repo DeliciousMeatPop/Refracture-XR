@@ -81,7 +81,7 @@ def pack(folder, name, suffix, out):
     return result
 
 
-def build(platform, upstream, binary, out, expected=None, version=None, root=ROOT):
+def build(platform, upstream, binary, out, expected=None, version=None, root=ROOT, merged=None):
     suffix, program = PLATFORMS[platform]
     upstream, binary, out, root = Path(upstream), Path(binary), Path(out), Path(root)
     if not binary.is_file():
@@ -95,6 +95,12 @@ def build(platform, upstream, binary, out, expected=None, version=None, root=ROO
         folder = extract(upstream, Path(work) / 'upstream')
         if not (folder / program).is_file() or not (folder / 'launcher/core').is_dir():
             raise SystemExit(f'{upstream.name} is not a Refract {platform} package (no {program} or launcher/core).')
+        # This launcher replaces Refract's, and runs against the scripts in Refract's package. If that package is not the Refract
+        # release this repository was merged up to, they may not fit: say so, loudly, in the workflow log.
+        theirs = json.loads((folder / 'launcher/package.json').read_text(encoding='utf-8')).get('version') if (folder / 'launcher/package.json').is_file() else None
+        if merged and theirs and theirs != merged:
+            print(f"::warning::Refract's newest release is {theirs} but Refract {merged} is what is merged into this repository. "
+                  'Merge Refract first, or the launcher in this package may not match its scripts.', file=sys.stderr)
         shutil.copy2(binary, folder / program)
         if platform == 'linux-x86_64':
             os.chmod(folder / program, 0o755)
@@ -125,6 +131,7 @@ def main():
     parser.add_argument('--release-json', help="Refract's release as GitHub's API returns it; its published SHA-256 is used")
     parser.add_argument('--allow-unverified', action='store_true', help='go on without a published SHA-256 (not for releases)')
     parser.add_argument('--version', help='default: launcher/package.json')
+    parser.add_argument('--merged-version', help='the Refract release this repository was merged up to, to compare with the package')
     parser.add_argument('--out', default=str(ROOT / 'dist'))
     args = parser.parse_args()
     expected = args.sha256
@@ -135,7 +142,7 @@ def main():
         if not args.allow_unverified:
             raise SystemExit(f'No published SHA-256 for {Path(args.upstream).name}. Give --sha256 or --release-json, or --allow-unverified.')
         print('warning: the Refract package was not verified', file=sys.stderr)
-    result = build(args.platform, args.upstream, args.binary, args.out, expected, args.version)
+    result = build(args.platform, args.upstream, args.binary, args.out, expected, args.version, merged=args.merged_version)
     print(f'Done: {result}')
 
 

@@ -10,7 +10,7 @@ Refract's runtimes. A Refracture XR package is **Refract's own release with this
 | --- | --- |
 | `.github/workflows/ci.yml` | Tests and builds (Linux; Windows runs the Unknown sources tests). Manual |
 | `.github/workflows/release.yml` | Builds, brands and packages; creates a draft release. Manual |
-| `tools/refracture_brand.py` | Gives a throwaway copy Refracture XR's name, R mark, icons and update source |
+| `tools/refracture_brand.py` | Gives a throwaway copy Refracture XR's name, R mark, icons, version and update source |
 | `tools/refracture_package.py` | Lays the launcher over Refract's release package and checks its SHA-256 |
 | `branding/` | The R mark and the icon set the branding step uses |
 | `tools/refracture_readme.txt` | Becomes `REFRACTURE.txt` in each package |
@@ -21,7 +21,7 @@ Refract's runtimes. A Refracture XR package is **Refract's own release with this
 `tools/refracture_brand.py` runs in the release job on its own checkout, before the launcher is built. It replaces the
 ring logo (`launcher/src/components/logo.jsx`), the app name in the title bar, sidebar, welcome and update dialogs and
 the window title, adds an About panel with the "Based on Refract" credit, copies `branding/icons` over the Tauri icons,
-and points the updater at this repository's releases (package names `Refracture-XR-<version>-<platform>`). The names of
+sets Refracture XR's own version, and points the updater at this repository's releases (package names `Refracture-XR-<version>-<platform>`). The names of
 Refract's runtimes and components ("Refract Native", "Refract components") are left as they are.
 
 Nothing is committed back. In the repository the launcher keeps Refract's logo, name and icons, so a merge from Refract
@@ -42,16 +42,21 @@ CI runs it (start CI from the Actions tab before merging from Refract), so a mer
 
 ## Making a release
 
-1. Merge Refract up to one of its **published releases** (the package it builds on must match the code in
-   `launcher/backend` and `launcher/core`, which run against Refract's scripts inside the package).
-2. Set the same version in `launcher/package.json` and `launcher/src-tauri/tauri.conf.json`. The updater compares
-   with `package.json`, and the package name uses it.
-3. Run the **Release** workflow from the Actions tab (**Run workflow**), optionally naming the Refract release tag to
-   build on (empty means its latest release). Neither workflow runs on its own. To have the version checked
-   against a tag, create the tag first and choose it as the ref to run on.
-4. The workflow downloads Refract's Windows and Linux packages, checks each against the SHA-256 Refract's release
-   publishes, builds the branded launcher, and attaches the two packages and `SHA256SUMS` to a **draft** release.
-5. Try a package, then publish the draft.
+Refracture XR has its own version (`0.0.1`, `0.1.0`, ...), unrelated to Refract's. Refract's newest release is always
+the one a package is built on.
+
+1. Actions tab > **Release** > **Run workflow**, and type Refracture XR's version: three numbers, e.g. `0.0.1`.
+2. The workflow downloads Refract's newest Windows and Linux packages, checks each against the SHA-256 Refract's
+   release publishes, gives a throwaway copy of the launcher that version and Refracture XR's branding, builds it,
+   and attaches `Refracture-XR-<version>-win64.zip`, `Refracture-XR-<version>-linux-x86_64.tar.gz` and `SHA256SUMS` to a
+   **draft** release named `v<version>`.
+3. Try a package, then publish the draft. The launcher in a package checks this repository's releases for newer
+   versions, comparing against the version you typed.
+
+The version is stamped onto the build only; `launcher/package.json` and `tauri.conf.json` in the repository keep
+Refract's version, which also records which Refract release this repository was last merged up to. If Refract's newest
+release is not that one, the workflow log shows a warning: the launcher in the package replaces Refract's and runs
+against Refract's scripts, so merge Refract first or the two may not fit.
 
 A package records which Refract release it was made from, with its checksum, in `UPSTREAM.txt`.
 
