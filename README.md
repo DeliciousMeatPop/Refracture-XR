@@ -139,11 +139,13 @@ The launcher also runs on Linux, including Unknown sources. Details are in
 Refract has no automated builds: its maintainer packages releases by hand on their own PC. Refracture XR adds two
 GitHub Actions workflows (`.github/workflows/`):
 
-- **CI** runs the launcher's tests, builds the interface and compiles the Tauri shell on every push and pull
-  request, and fails early if a merge from Refract changed a line the branding replaces.
-- **Release** (push a `v*` tag, or run it by hand) builds the launcher, gives it Refracture XR's name, R mark and
-  icons on a throwaway copy, and lays it over Refract's official release package for Windows and Linux. It creates
-  a **draft** release for you to check and publish.
+Neither runs by itself: start them from the repository's **Actions** tab (**Run workflow**).
+
+- **CI** runs the launcher's tests, builds the interface and compiles the Tauri shell, and fails if a merge from
+  Refract changed a line the branding replaces.
+- **Release** builds the launcher, gives it Refracture XR's name, R mark and icons on a throwaway copy, and lays it
+  over Refract's official release package for Windows and Linux. It creates a **draft** release for you to check
+  and publish.
 
 Because the branding is applied at build time, the files in this repository stay Refract's own and merging
 Refract's changes stays easy. Details, and what to do when a merge breaks the branding, are in

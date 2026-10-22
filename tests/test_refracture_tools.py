@@ -25,7 +25,7 @@ class Brand(unittest.TestCase):
         chrome = (work / 'launcher/src/components/chrome.jsx').read_text(encoding='utf-8')
         self.assertIn('<span>Refracture XR</span>', chrome)
         self.assertIn('data:image/png;base64,', (work / 'launcher/src/components/logo.jsx').read_text(encoding='utf-8'))
-        self.assertIn("'DeliciousMeatPop/Refract'", (work / 'launcher/core/update.mjs').read_text(encoding='utf-8'))
+        self.assertIn("'DeliciousMeatPop/Refracture-XR'", (work / 'launcher/core/update.mjs').read_text(encoding='utf-8'))
         self.assertIn('"title": "Refracture XR"', (work / 'launcher/src-tauri/tauri.conf.json').read_text(encoding='utf-8'))
         self.assertEqual((work / 'launcher/src-tauri/icons/icon.png').read_bytes(), (ROOT / 'branding/icons/icon.png').read_bytes())
         # The checkout the script was run from is untouched.

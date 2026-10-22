@@ -8,8 +8,8 @@ Refract's runtimes. A Refracture XR package is **Refract's own release with this
 
 | File | Role |
 | --- | --- |
-| `.github/workflows/ci.yml` | Tests and builds on every push and pull request (Linux and Windows) |
-| `.github/workflows/release.yml` | Builds, brands and packages; creates a draft release |
+| `.github/workflows/ci.yml` | Tests and builds (Linux; Windows runs the Unknown sources tests). Manual |
+| `.github/workflows/release.yml` | Builds, brands and packages; creates a draft release. Manual |
 | `tools/refracture_brand.py` | Gives a throwaway copy Refracture XR's name, R mark, icons and update source |
 | `tools/refracture_package.py` | Lays the launcher over Refract's release package and checks its SHA-256 |
 | `branding/` | The R mark and the icon set the branding step uses |
@@ -37,7 +37,7 @@ python tools/refracture_brand.py --root dist/branded
 (`dist/` is not tracked by git. The copy has no `node_modules`; link or install them there to run it.)
 
 `python tools/refracture_brand.py --check` changes nothing and reports each replacement whose Refract text is gone.
-CI runs it, so a merge from Refract that changes one of those lines fails on the pull request. Fix it by updating the
+CI runs it (start CI from the Actions tab before merging from Refract), so a merge that changes one of those lines is caught. Fix it by updating the
 `REPLACEMENTS` list in the script; running the script twice is harmless.
 
 ## Making a release
@@ -46,8 +46,9 @@ CI runs it, so a merge from Refract that changes one of those lines fails on the
    `launcher/backend` and `launcher/core`, which run against Refract's scripts inside the package).
 2. Set the same version in `launcher/package.json` and `launcher/src-tauri/tauri.conf.json`. The updater compares
    with `package.json`, and the package name uses it.
-3. Push a tag `v<version>`, or run the **Release** workflow from the Actions tab (optionally naming the Refract
-   release tag to build on; empty means its latest release).
+3. Run the **Release** workflow from the Actions tab (**Run workflow**), optionally naming the Refract release tag to
+   build on (empty means its latest release). Neither workflow runs on its own. To have the version checked
+   against a tag, create the tag first and choose it as the ref to run on.
 4. The workflow downloads Refract's Windows and Linux packages, checks each against the SHA-256 Refract's release
    publishes, builds the branded launcher, and attaches the two packages and `SHA256SUMS` to a **draft** release.
 5. Try a package, then publish the draft.

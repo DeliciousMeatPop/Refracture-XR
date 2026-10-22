@@ -16,4 +16,4 @@ Your games, settings and Meta sign-in live in the same place as Refract's (%APPD
 can be switched between.
 
 Refracture XR is licensed under the GNU GPL v3.0 or later with the additional term in NOTICE.
-Source: https://github.com/DeliciousMeatPop/Refract
+Source: https://github.com/DeliciousMeatPop/Refracture-XR
