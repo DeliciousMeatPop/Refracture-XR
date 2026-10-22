@@ -1,10 +1,10 @@
-<img src="img/refract_banner.png" alt="Refracture, based on Refract" width="100%">
+<p align="center"><img src="img/refracture_xr_logo.png" alt="Refracture XR" width="640"></p>
 
-# Refracture
+# Refracture XR
 
-**Based on Refract: https://github.com/MIXIDtheSilly/Refract**
+**An independent fork of Refract.** Based on Refract: https://github.com/MIXIDtheSilly/Refract
 
-Refracture is a fork of [Refract](https://github.com/MIXIDtheSilly/Refract), which runs Meta Quest
+Refracture XR (Refracture for short) is a fork of [Refract](https://github.com/MIXIDtheSilly/Refract), which runs Meta Quest
 (Android OpenXR) games on a Windows or Linux PC, in a PC VR headset or in a window on the screen.
 Everything Refract does, Refracture does. Refracture adds one thing: **Unknown sources**, a way to run
 Quest games that did not come from the Meta store.
