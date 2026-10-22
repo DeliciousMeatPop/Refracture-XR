@@ -1,0 +1,144 @@
+name: Release
+
+# Refracture XR's packages are Refract's own release with this fork's launcher laid over it (tools/refracture_package.py):
+# Refract's runtimes need its maintainer's build machine, so they are not rebuilt here. The launcher is built on a
+# throwaway checkout that tools/refracture_brand.py has given Refracture XR's name and R mark, so the committed files stay
+# Refract's and merges stay clean. The release is created as a draft; publish it once the packages have been tried.
+#
+# Start it by pushing a tag (v1.0.4: must equal the version in launcher/package.json and launcher/src-tauri/tauri.conf.json),
+# or by hand from the Actions tab.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: "Refract release to build on, e.g. v1.0.3 (empty: its latest release). Use the one this checkout was merged up to."
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  UPSTREAM: MIXIDtheSilly/Refract
+
+jobs:
+  package:
+    name: Package (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: win64
+            os: windows-latest
+            program: refract-launcher.exe
+          - platform: linux-x86_64
+            os: ubuntu-24.04
+            program: refract-launcher
+    runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM_TAG: ${{ inputs.upstream_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: launcher/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: The tag matches the launcher's version
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          for file in launcher/package.json launcher/src-tauri/tauri.conf.json; do
+            version="$(node -p "require('./$file').version")"
+            [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "$file says $version but the tag is $GITHUB_REF_NAME" >&2; exit 1; }
+          done
+
+      - name: Refract's release package
+        shell: bash
+        run: |
+          tag="$UPSTREAM_TAG"
+          if [ -z "$tag" ]; then tag="$(gh release view -R "$UPSTREAM" --json tagName -q .tagName)"; fi
+          [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Not a release tag: $tag" >&2; exit 1; }
+          gh api "repos/$UPSTREAM/releases/tags/$tag" > release.json
+          asset="$(node -e "const r = require('./release.json'); const m = r.assets.map(a => a.name).filter(n => /^Refract-[0-9.]+-${{ matrix.platform }}\.(zip|tar\.gz)\$/.test(n)); if (m.length !== 1) { console.error('Expected one ${{ matrix.platform }} package in release $tag, found: ' + m.join(', ')); process.exit(1); } console.log(m[0]);")"
+          mkdir upstream
+          gh release download "$tag" -R "$UPSTREAM" -p "$asset" -D upstream
+          echo "ASSET=$asset" >> "$GITHUB_ENV"
+          echo "Using Refract $tag: $asset"
+
+      - name: Brand the launcher as Refracture XR
+        run: python tools/refracture_brand.py
+
+      - name: System libraries for Tauri
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: launcher/src-tauri
+
+      - name: Build the launcher
+        working-directory: launcher
+        run: |
+          npm ci --no-audit --no-fund
+          npm run tauri -- build --no-bundle
+
+      - name: Package
+        shell: bash
+        run: >
+          python tools/refracture_package.py
+          --platform ${{ matrix.platform }}
+          --upstream "upstream/$ASSET"
+          --release-json release.json
+          --binary "launcher/src-tauri/target/release/${{ matrix.program }}"
+          --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.platform }}
+          path: dist/Refracture-XR-*
+          if-no-files-found: error
+
+  publish:
+    name: Draft release
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: dist
+          merge-multiple: true
+      - name: Create the draft release
+        run: |
+          version="$(node -p "require('./launcher/package.json').version")"
+          tag="${GITHUB_REF_NAME}"
+          [ "$GITHUB_REF_TYPE" = tag ] || tag="v$version"
+          (cd dist && cat *.sha256 > SHA256SUMS && rm -- *.sha256)
+          printf '%s\n' \
+            "Refracture XR $version: an independent fork of Refract. Based on Refract: https://github.com/$UPSTREAM" \
+            "" \
+            "Each package is Refract's own release (see UPSTREAM.txt inside it for which one, with its SHA-256) with Refracture XR's launcher on top. It adds the Unknown sources page (docs/unknown_sources.md). Unzip or unpack it and start Refract.exe or ./Refract, as for Refract." \
+            "" \
+            "Source: https://github.com/${GITHUB_REPOSITORY}" \
+            "" \
+            '```' "$(cat dist/SHA256SUMS)" '```' > notes.md
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" dist/* --draft --target "$GITHUB_SHA" --title "Refracture XR $version" --notes-file notes.md
+          fi

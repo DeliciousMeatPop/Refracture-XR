@@ -74,10 +74,12 @@ library is not taken over; use that game's own page for it.
 - **Needs the Android SDK build tools and Python** (installed by **Settings > Setup**) to read an APK's
   package, version and launch activity.
 - **No drag and drop yet.** Use Add APK or Add folder.
-- **The update check points at upstream.** A packaged build (no `.git` folder) asks about Refract's
-  releases, which don't contain Unknown sources, and installing one would replace Refracture with Refract.
-  Refracture has no packaged releases yet, so run it from a source checkout, which is never offered an
-  update.
+- **Source checkouts show Refract's name and logo.** Refracture XR's name, R mark and icons are applied when a
+  release is built (see [Builds](#builds-and-branding)), so that merging Refract's changes never conflicts with
+  them. Running from a source checkout gives the same features under Refract's branding. A source checkout is
+  never offered updates; update it with git.
+- **Releases lean on Refract's.** A Refracture XR package is Refract's own release with this launcher on top, so
+  it can only be built on a Refract release that exists, and it moves with Refract's runtimes.
 - **New and lightly tested.** The library logic has automated tests; it has not been tried against a wide
   range of real games or on every platform.
 
@@ -107,9 +109,10 @@ against upstream Refract first.
 
 ### Windows
 
-1. Get a source checkout of this repository and double-click **Refract Launcher.cmd** (missing tools are
-   installed for you; the first build takes a few minutes).
-   Refract's [releases](https://github.com/MIXIDtheSilly/Refract/releases) are unzip-and-run, but they do not
+1. Download a package from this repository's **Releases** (unzip it somewhere permanent and open `Refract.exe`),
+   if one has been published. Otherwise get a source checkout of this repository and double-click
+   **Refract Launcher.cmd** (missing tools are installed for you; the first build takes a few minutes).
+   Refract's own [releases](https://github.com/MIXIDtheSilly/Refract/releases) work too, but they do not
    include Unknown sources.
 2. In **Settings > Setup**, click each button until everything is green.
 3. Meta store games: **Connect Meta**, then download, install and play.
@@ -130,6 +133,21 @@ scripts/waydroid.sh play com.example.game     # --headset for SteamVR/Monado/WiV
 
 The launcher also runs on Linux, including Unknown sources. Details are in
 [docs/linux_waydroid.md](docs/linux_waydroid.md).
+
+## Builds and branding
+
+Refract has no automated builds: its maintainer packages releases by hand on their own PC. Refracture XR adds two
+GitHub Actions workflows (`.github/workflows/`):
+
+- **CI** runs the launcher's tests, builds the interface and compiles the Tauri shell on every push and pull
+  request, and fails early if a merge from Refract changed a line the branding replaces.
+- **Release** (push a `v*` tag, or run it by hand) builds the launcher, gives it Refracture XR's name, R mark and
+  icons on a throwaway copy, and lays it over Refract's official release package for Windows and Linux. It creates
+  a **draft** release for you to check and publish.
+
+Because the branding is applied at build time, the files in this repository stay Refract's own and merging
+Refract's changes stays easy. Details, and what to do when a merge breaks the branding, are in
+[docs/refracture_builds.md](docs/refracture_builds.md).
 
 ## Staying in sync with Refract
 
