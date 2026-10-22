@@ -42,11 +42,12 @@ CI runs it (start CI from the Actions tab before merging from Refract), so a mer
 
 ## Making a release
 
-Refracture XR has its own version (`0.0.1`, `0.1.0`, ...), unrelated to Refract's. Refract's newest release is always
-the one a package is built on.
+Refracture XR has its own version (`0.0.1`, `0.1.0`, ...), unrelated to Refract's. A package is always built on Refract's
+newest published release **that has a package for the platform**: a Refract release that is only a tag, with no zip or
+tar.gz uploaded, is passed over, and a pre-release or draft is never used.
 
 1. Actions tab > **Release** > **Run workflow**, and type Refracture XR's version: three numbers, e.g. `0.0.1`.
-2. The workflow downloads Refract's newest Windows and Linux packages, checks each against the SHA-256 Refract's
+2. The workflow finds Refract's newest Windows and Linux packages, downloads them, checks each against the SHA-256 Refract's
    release publishes, gives a throwaway copy of the launcher that version and Refracture XR's branding, builds it,
    and attaches `Refracture-XR-<version>-win64.zip`, `Refracture-XR-<version>-linux-x86_64.tar.gz` and `SHA256SUMS` to a
    **draft** release named `v<version>`.
@@ -55,7 +56,8 @@ the one a package is built on.
 
 The version is stamped onto the build only; `launcher/package.json` and `tauri.conf.json` in the repository keep
 Refract's version, which also records which Refract release this repository was last merged up to. If Refract's newest
-release is not that one, the workflow log shows a warning: the launcher in the package replaces Refract's and runs
+release with a package is not that one (for example Refract 1.0.3 is merged here but its newest package is 1.0.2),
+the workflow log shows a warning: the launcher in the package replaces Refract's and runs
 against Refract's scripts, so merge Refract first or the two may not fit.
 
 A package records which Refract release it was made from, with its checksum, in `UPSTREAM.txt`.
@@ -64,8 +66,10 @@ A package records which Refract release it was made from, with its checksum, in 
 
 - The workflows have only been checked here as far as the scripts and YAML go. The first real run on GitHub's
   runners (the Tauri build in particular) may need small fixes.
-- If Refract changes how its package is laid out (the launcher's file name, or no `launcher/core` folder), the
-  packaging step stops with a message rather than producing a broken package.
+- If no Refract release has a package named `Refract-<version>-win64.zip` or `Refract-<version>-linux-x86_64.tar.gz`, the
+  workflow stops and lists each recent release's files in the log. If Refract changes how its package is laid out (the
+  launcher's file name, or no `launcher/core` folder), the packaging step stops with a message rather than producing a
+  broken package.
 - Refract is GPL-3.0-or-later with an added credit term. Redistributing its release package is allowed under that
   licence; the packages carry `LICENSE`, `NOTICE` and `CREDITS.md`, and this repository is the matching source for
   the launcher part. Refract's source for the rest is at the release tag named in `UPSTREAM.txt`.

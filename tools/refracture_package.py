@@ -45,6 +45,24 @@ def published_sha256(release, name):
     return None
 
 
+def pick_release(releases, platform):
+    """The newest published Refract release with exactly one package for the platform, and that package's name.
+
+    Refract's newest release can be a tag whose package was never uploaded, so the newest *with a package* is used.
+    `releases` is GitHub's list, newest first."""
+    pattern = re.compile(rf'Refract-\d+\.\d+\.\d+-{re.escape(platform)}\.(zip|tar\.gz)')
+    for release in releases:
+        if release.get('draft') or release.get('prerelease'):
+            continue
+        names = [a['name'] for a in release.get('assets') or [] if pattern.fullmatch(a.get('name', ''))]
+        if len(names) == 1:
+            return release, names[0]
+    lines = [f"  {r.get('tag_name')}{' (pre-release)' if r.get('prerelease') else ''}{' (draft)' if r.get('draft') else ''}: "
+             f"{', '.join(a.get('name', '?') for a in r.get('assets') or []) or 'no files'}" for r in releases[:10]]
+    raise SystemExit(f'No Refract release has a {platform} package named Refract-<version>-{platform}.zip or .tar.gz. Newest releases and their files:\n'
+                     + ('\n'.join(lines) or '  (none)'))
+
+
 def extract(archive, target):
     archive = Path(archive)
     if archive.name.endswith('.zip'):
@@ -99,7 +117,7 @@ def build(platform, upstream, binary, out, expected=None, version=None, root=ROO
         # release this repository was merged up to, they may not fit: say so, loudly, in the workflow log.
         theirs = json.loads((folder / 'launcher/package.json').read_text(encoding='utf-8')).get('version') if (folder / 'launcher/package.json').is_file() else None
         if merged and theirs and theirs != merged:
-            print(f"::warning::Refract's newest release is {theirs} but Refract {merged} is what is merged into this repository. "
+            print(f"::warning::The Refract package used here is {theirs} but Refract {merged} is what is merged into this repository. "
                   'Merge Refract first, or the launcher in this package may not match its scripts.', file=sys.stderr)
         shutil.copy2(binary, folder / program)
         if platform == 'linux-x86_64':
@@ -125,8 +143,11 @@ def build(platform, upstream, binary, out, expected=None, version=None, root=ROO
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--platform', required=True, choices=sorted(PLATFORMS))
-    parser.add_argument('--upstream', required=True, help="Refract's release package for the platform (.zip or .tar.gz)")
-    parser.add_argument('--binary', required=True, help="the launcher program built from this checkout")
+    parser.add_argument('--pick-release', metavar='RELEASES_JSON', help="instead of packaging: choose Refract's release for --platform from "
+                        "GitHub's release list, write it to --write-release and put UPSTREAM_TAG and ASSET in $GITHUB_ENV")
+    parser.add_argument('--write-release', default='release.json', help='where --pick-release writes the chosen release')
+    parser.add_argument('--upstream', help="Refract's release package for the platform (.zip or .tar.gz)")
+    parser.add_argument('--binary', help="the launcher program built from this checkout")
     parser.add_argument('--sha256', help="the SHA-256 Refract's release publishes for that package")
     parser.add_argument('--release-json', help="Refract's release as GitHub's API returns it; its published SHA-256 is used")
     parser.add_argument('--allow-unverified', action='store_true', help='go on without a published SHA-256 (not for releases)')
@@ -134,6 +155,16 @@ def main():
     parser.add_argument('--merged-version', help='the Refract release this repository was merged up to, to compare with the package')
     parser.add_argument('--out', default=str(ROOT / 'dist'))
     args = parser.parse_args()
+    if args.pick_release:
+        release, asset = pick_release(json.loads(Path(args.pick_release).read_text(encoding='utf-8')), args.platform)
+        Path(args.write_release).write_text(json.dumps(release), encoding='utf-8')
+        print(f"Using Refract {release['tag_name']}: {asset}")
+        if os.environ.get('GITHUB_ENV'):
+            with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8', newline='\n') as env:
+                env.write(f"UPSTREAM_TAG={release['tag_name']}\nASSET={asset}\n")
+        return
+    if not args.upstream or not args.binary:
+        parser.error('--upstream and --binary are required to package')
     expected = args.sha256
     if not expected and args.release_json:
         release = json.loads(Path(args.release_json).read_text(encoding='utf-8'))
