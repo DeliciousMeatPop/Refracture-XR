@@ -1,6 +1,6 @@
 name: Release
 
-# Refracture XR's packages are Refract's newest release with this fork's launcher laid over it (tools/refracture_package.py):
+# Refracture XR's packages are Refract's newest packaged release with this fork's launcher laid over it (tools/refracture_package.py):
 # Refract's runtimes need its maintainer's build machine, so they are not rebuilt here. The launcher is built on a
 # throwaway checkout that tools/refracture_brand.py has given Refracture XR's name, R mark and version, so the committed
 # files stay Refract's and merges stay clean. The release is created as a draft; publish it once the packages have been tried.
@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Refracture XR's own version: three numbers, e.g. 0.0.1 (not Refract's version; the newest Refract release is always used)"
+        description: "Refracture XR's own version: three numbers, e.g. 0.0.1 (not Refract's version; the newest Refract release with a package is always used)"
         required: true
 
 permissions:
@@ -59,17 +59,19 @@ jobs:
         shell: bash
         run: echo "MERGED_UPSTREAM=$(node -p "require('./launcher/package.json').version")" >> "$GITHUB_ENV"
 
+      # Refract's newest release can be a tag with no package uploaded, so this takes the newest one that has this platform's.
       - name: Refract's newest release package
         shell: bash
         run: |
-          gh api "repos/$UPSTREAM/releases/latest" > release.json || { echo "Refract has no published release (a pre-release does not count)." >&2; exit 1; }
-          tag="$(node -p "require('./release.json').tag_name")"
-          [[ "$tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Unexpected release tag: $tag" >&2; exit 1; }
-          asset="$(node -e "const r = require('./release.json'); const m = r.assets.map(a => a.name).filter(n => /^Refract-[0-9.]+-${{ matrix.platform }}\.(zip|tar\.gz)\$/.test(n)); if (m.length !== 1) { console.error('Expected one ${{ matrix.platform }} package in Refract release ' + r.tag_name + ', found: ' + m.join(', ')); process.exit(1); } console.log(m[0]);")"
+          gh api "repos/$UPSTREAM/releases?per_page=30" > releases.json
+          python tools/refracture_package.py --platform ${{ matrix.platform }} --pick-release releases.json --write-release release.json
+
+      # UPSTREAM_TAG and ASSET were put in $GITHUB_ENV by the step above, so they exist from this step on.
+      - name: Download Refract's package
+        shell: bash
+        run: |
           mkdir upstream
-          gh release download "$tag" -R "$UPSTREAM" -p "$asset" -D upstream
-          echo "ASSET=$asset" >> "$GITHUB_ENV"
-          echo "Using Refract $tag: $asset"
+          gh release download "$UPSTREAM_TAG" -R "$UPSTREAM" -p "$ASSET" -D upstream
 
       - name: Brand the launcher as Refracture XR
         run: python tools/refracture_brand.py --version "$VERSION"

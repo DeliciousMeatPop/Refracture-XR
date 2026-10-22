@@ -1,5 +1,5 @@
 """Tests for tools/refracture_brand.py and tools/refracture_package.py (run: python -m unittest discover -s tests -p "test_refracture*.py")."""
-import hashlib, json, shutil, sys, tarfile, tempfile, unittest, zipfile
+import hashlib, json, os, shutil, sys, tarfile, tempfile, unittest, zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -165,6 +165,43 @@ class Package(unittest.TestCase):
                 package.build('win64', upstream, self.binary, self.work / 'out', merged=merged)
             self.assertEqual('::warning::' in err.getvalue(), warns, merged)
             if warns: self.assertIn('1.0.3', err.getvalue()); self.assertIn('1.0.2', err.getvalue())
+
+    def test_the_newest_release_with_a_package_is_used(self):
+        def release(tag, *assets, **flags): return {'tag_name': tag, 'assets': [{'name': a} for a in assets], **flags}
+        releases = [release('v1.0.3'),                                                   # Tagged, nothing uploaded.
+                    release('v1.0.2-test', 'Refract-1.0.2-win64.zip', prerelease=True),  # Pre-release.
+                    release('v1.0.2', 'Refract-1.0.2-win64.zip', 'Refract-1.0.2-linux-x86_64.tar.gz', 'notes.txt'),
+                    release('v1.0.0', 'Refract-1.0.0-win64.zip')]
+        chosen, asset = package.pick_release(releases, 'win64')
+        self.assertEqual((chosen['tag_name'], asset), ('v1.0.2', 'Refract-1.0.2-win64.zip'))
+        self.assertEqual(package.pick_release(releases, 'linux-x86_64')[1], 'Refract-1.0.2-linux-x86_64.tar.gz')
+        # A draft is never used; two packages for one platform in a release is ambiguous, so that release is passed over.
+        again = [release('v2', 'Refract-2.0.0-win64.zip', draft=True), release('v1.5', 'Refract-1.5.0-win64.zip', 'Refract-1.5.1-win64.zip')] + releases
+        self.assertEqual(package.pick_release(again, 'win64')[0]['tag_name'], 'v1.0.2')
+
+    def test_when_no_release_has_a_package_the_log_says_what_each_has(self):
+        releases = [{'tag_name': 'v1.0.3', 'assets': []}, {'tag_name': 'v1.0.2', 'assets': [{'name': 'Refract-win.zip'}]}]
+        with self.assertRaises(SystemExit) as error:
+            package.pick_release(releases, 'win64')
+        message = str(error.exception)
+        self.assertIn('v1.0.3: no files', message)
+        self.assertIn('v1.0.2: Refract-win.zip', message)
+
+    def test_the_command_line_picks_a_release_and_hands_it_to_the_workflow(self):
+        releases = self.work / 'releases.json'
+        releases.write_text(json.dumps([{'tag_name': 'v1.0.3', 'assets': []}, {'tag_name': 'v1.0.2', 'assets': [{'name': 'Refract-1.0.2-win64.zip', 'digest': 'sha256:' + 'ab' * 32}]}]))
+        env = self.work / 'github_env'
+        old_argv, old_env = sys.argv, dict(os.environ)
+        os.environ['GITHUB_ENV'] = str(env)
+        sys.argv = ['x', '--platform', 'win64', '--pick-release', str(releases), '--write-release', str(self.work / 'release.json')]
+        try:
+            package.main()
+        finally:
+            sys.argv = old_argv; os.environ.clear(); os.environ.update(old_env)
+        self.assertEqual(env.read_text(), 'UPSTREAM_TAG=v1.0.2\nASSET=Refract-1.0.2-win64.zip\n')
+        # The chosen release is what the packaging step reads its checksum from.
+        chosen = json.loads((self.work / 'release.json').read_text())
+        self.assertEqual(package.published_sha256(chosen, 'Refract-1.0.2-win64.zip'), 'ab' * 32)
 
     def test_a_package_that_does_not_match_its_checksum_is_refused(self):
         upstream = refract_release(self.work, 'win64')

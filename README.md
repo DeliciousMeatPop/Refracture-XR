@@ -145,7 +145,7 @@ Neither runs by itself: start them from the repository's **Actions** tab (**Run 
   Refract changed a line the branding replaces.
 - **Release** asks for Refracture XR's own version (`0.0.1`; nothing to do with Refract's), builds the launcher
   with Refracture XR's name, R mark, icons and that version on a throwaway copy, and lays it over Refract's newest
-  release package for Windows and Linux. It creates a **draft** release for you to check and publish.
+  packaged release for Windows and Linux. It creates a **draft** release for you to check and publish.
 
 Because the branding is applied at build time, the files in this repository stay Refract's own and merging
 Refract's changes stays easy. Details, and what to do when a merge breaks the branding, are in
